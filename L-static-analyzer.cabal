@@ -25,7 +25,9 @@ source-repository head
 
 library
   exposed-modules:
+      Grammar
       Lib
+      Statement
   other-modules:
       Paths_L_static_analyzer
   hs-source-dirs:
@@ -33,6 +35,7 @@ library
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       base >=4.7 && <5
+    , megaparsec
   default-language: Haskell2010
 
 executable L-static-analyzer-exe
@@ -45,17 +48,29 @@ executable L-static-analyzer-exe
   build-depends:
       L-static-analyzer
     , base >=4.7 && <5
+    , megaparsec
   default-language: Haskell2010
 
 test-suite L-static-analyzer-test
   type: exitcode-stdio-1.0
-  main-is: Spec.hs
+  main-is: Test.hs
   other-modules:
+      Test.Parsers
       Paths_L_static_analyzer
   hs-source-dirs:
       test
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      L-static-analyzer
+      HUnit
+    , HUnit-approx
+    , L-static-analyzer
     , base >=4.7 && <5
+    , hedgehog
+    , hspec
+    , hspec-megaparsec
+    , megaparsec
+    , tasty
+    , tasty-discover
+    , tasty-hedgehog
+    , tasty-hunit
   default-language: Haskell2010
