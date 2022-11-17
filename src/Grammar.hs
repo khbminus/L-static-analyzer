@@ -1,8 +1,9 @@
 module Grammar where
 
 import Control.Monad
+import Control.Monad.Combinators.Expr
 import Data.Void
-import Statement (Expression (..), Statement (..), reservedKeywords)
+import Statement (Expression (..), Operations (..), Statement (..), reservedKeywords)
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
@@ -34,30 +35,61 @@ pVarName = VariableName <$> pName
 
 pFunctionCall :: Parser Expression
 pFunctionCall = do
-  FunctionCall <$> (lexeme pName <?> "Function name")  <*> (arguments <?> "arguments")
+  FunctionCall <$> (lexeme pName <?> "Function name") <*> (arguments <?> "arguments")
   where
     arguments :: Parser [Expression]
-    arguments = (:) <$> pExpression <*> many pExpression
+    arguments = (:) <$> expression <*> many expression
 
 parens :: Parser a -> Parser a
 parens = between (symbol "(") (symbol ")")
 
-pExpression :: Parser Expression
-pExpression =
+expressionTerm :: Parser Expression
+expressionTerm =
   choice
-    [ parens pExpression,
+    [ parens expression,
       try pFunctionCall,
-      pVarName, -- TODO: "a " should raise function without arguments error, not var parsing error
+      pVarName,
       pConst
     ]
 
+binary :: String -> (Expression -> Expression -> Expression) -> Operator Parser Expression
+binary name f = InfixL (f <$ symbol name)
+
+compose :: (Expression -> Expression -> Operations) -> Expression -> Expression -> Expression
+compose f a b = Application $ f a b
+
+expressionOperationsTable :: [[Operator Parser Expression]]
+expressionOperationsTable =
+  [ [ binary "*" $ compose Multiplication,
+      binary "/" $ compose Division,
+      binary "%" $ compose Modulo
+    ],
+    [ binary "+" $ compose Addition,
+      binary "-" $ compose Subtraction
+    ],
+    [ binary "==" $ compose Equals,
+      binary "!=" $ compose NotEquals,
+      binary "<" $ compose Less,
+      binary "<=" $ compose LessOrEquals,
+      binary ">=" $ compose GreaterOrEquals,
+      binary ">" $ compose Greater
+    ],
+    [ binary "&&" $ compose LazyAnd
+    ],
+    [ binary "||" $ compose LazyOr
+    ]
+  ]
+
+expression :: Parser Expression
+expression = makeExprParser expressionTerm expressionOperationsTable
+
 letVariable :: Parser Statement
 letVariable =
-  Let <$> (lexeme pName <?> "Variable name") <*> (symbol ":=" *> pExpression) <?> "Variable let"
+  Let <$> (lexeme pName <?> "Variable name") <*> (symbol ":=" *> expression) <?> "Variable let"
 
 write :: Parser Statement
 write = do
-  Write <$> (symbol "write" *> pExpression) <?> "while statement"
+  Write <$> (symbol "write" *> expression) <?> "while statement"
 
 readVariable :: Parser Statement
 readVariable = do
@@ -66,13 +98,13 @@ readVariable = do
 while :: Parser Statement
 while =
   While
-    <$> (between (symbol "while") (symbol "do") pExpression <?> "While condition")
+    <$> (between (symbol "while") (symbol "do") expression <?> "While condition")
     <*> (statement <?> "While statement")
 
 ifThenElse :: Parser Statement
 ifThenElse =
   If
-    <$> (symbol "if" *> pExpression <?> "If condition")
+    <$> (symbol "if" *> expression <?> "If condition")
     <*> (symbol "then" *> statement <?> "True statement")
     <*> (symbol "else" *> statement <?> "False Statement")
 
@@ -83,7 +115,7 @@ functionCallStatement =
     <*> (arguments <?> "arguments")
   where
     arguments :: Parser [Expression]
-    arguments = (:) <$> pExpression <*> many pExpression
+    arguments = (:) <$> expression <*> many expression
 
 statement :: Parser Statement
 statement =
