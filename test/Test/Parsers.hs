@@ -19,9 +19,9 @@ parseFailed parser line = case parse parser "" line of
 
 unit_parser_const :: IO ()
 unit_parser_const = do
-  let succConst = parseSuccessful pInteger
-  let failConst = parseFailed pInteger
-  
+  let succConst = parseSuccessful pConst
+  let failConst = parseFailed pConst
+
   assertBool "const parser failed" $ succConst "1" (Const 1)
   assertBool "const parser failed" $ succConst "1.23456" (Const 1)
   assertBool "const parser failed" $ succConst "1234567" (Const 1234567)
