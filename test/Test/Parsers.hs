@@ -6,29 +6,29 @@ import Test.HUnit
 import Text.Megaparsec
 
 parseSuccessful :: Eq a => Parser a -> String -> a -> Bool
-parseSuccessful parser line result = case parse parser "" line of
+parseSuccessful parser line result = case parse (parser <* eof) "" line of
   Left _ -> False
   Right a -> a == result
 
 parseFailed :: Parser a -> String -> Bool
-parseFailed parser line = case parse parser "" line of
+parseFailed parser line = case parse (parser <* eof) "" line of
   Left _ -> True
   Right _ -> False
 
-unit_parser_const :: IO ()
-unit_parser_const = do
-  let succConst = parseSuccessful pConst
-  let failConst = parseFailed pConst
+unit_const :: IO ()
+unit_const = do
+  let succConst = parseSuccessful constValue
+  let failConst = parseFailed constValue
 
   assertBool "const parser failed" $ succConst "1" (Const 1)
-  assertBool "const parser failed" $ succConst "1.23456" (Const 1)
+  assertBool "const parser failed" $ failConst "1.23456"
   assertBool "const parser failed" $ succConst "1234567" (Const 1234567)
   assertBool "const parser failed" $ failConst "ahahahahh1234"
 
-unit_parser_var_name :: IO ()
-unit_parser_var_name = do
-  let succVar = parseSuccessful pVarName
-  let failVar = parseFailed pVarName
+unit_var_name :: IO ()
+unit_var_name = do
+  let succVar = parseSuccessful varName
+  let failVar = parseFailed varName
 
   assertBool "var parser failed" $ failVar "1234abc"
   assertBool "var parser failed" $ failVar ""
@@ -41,8 +41,8 @@ unit_parser_var_name = do
   assertBool "bad keywords are banned" $ failVar "then"
   assertBool "bad keywords are banned" $ failVar "else"
 
-unit_parser_expr :: IO ()
-unit_parser_expr = do
+unit_expr :: IO ()
+unit_expr = do
   let succExpr = parseSuccessful expression
   let failExpr = parseFailed expression
 
@@ -61,5 +61,110 @@ unit_parser_expr = do
             )
             (Const 3)
       )
-  
-  
+
+  assertBool "fails on unary" $ failExpr "+1"
+  assertBool "fails on bad expr" $ failExpr "1+2++-"
+
+unit_let :: IO ()
+unit_let = do
+  let success = parseSuccessful letVariable
+  let fail = parseFailed letVariable
+
+  assertBool "to const" $ success "x := 1" (Let "x" (Const 1))
+  assertBool "reassign" $ success "x := x" (Let "x" (VariableName "x"))
+  assertBool "compicated expression" $
+    success
+      "x := y % 4 + 2 * 3"
+      ( Let
+          "x"
+          ( Application $
+              Addition
+                ( Application $
+                    Modulo
+                      (VariableName "y")
+                      (Const 4)
+                )
+                ( Application $
+                    Multiplication
+                      (Const 2)
+                      (Const 3)
+                )
+          )
+      )
+
+  assertBool "assign statement" $ fail "x := while 1 do 2"
+
+-- TODO: uncomment this (see Grammar.hs for details)
+--  assertBool "assign function call" $
+--    success
+--      "loooooong := function first second third 1 (2 + 3)"
+--      ( Let
+--          "loooooong"
+--          ( FunctionCall
+--              "function"
+--              [ VariableName "first"
+--              , VariableName "second"
+--              , VariableName "third"
+--              , Const 1
+--              , Application $ Addition (Const 2) (Const 3)
+--              ]
+--          )
+--      )
+
+unit_while :: IO ()
+unit_while = do
+  let success = parseSuccessful while
+  let fail = parseFailed while
+
+  assertBool "simple while" $ success "while 1 do x := x" $ While (Const 1) (Let "x" (VariableName "x"))
+  assertBool "complicated expression" $
+    success "while 1 + 2 do x := x" $
+      While
+        (Application $ Addition (Const 1) (Const 2))
+        (Let "x" (VariableName "x"))
+
+  assertBool "function call" $
+    success "while f 1 do x := x" $
+      While
+        (FunctionCall "f" [Const 1])
+        (Let "x" (VariableName "x"))
+
+  assertBool "just while fails" $ fail "while"
+  assertBool "just while-do failes" $ fail "while do"
+  assertBool "without statement fail" $ fail "while 1 do"
+  assertBool "without condition fail" $ fail "while do x := x"
+
+unit_if :: IO ()
+unit_if = do
+  let success = parseSuccessful ifThenElse
+  let fail = parseFailed ifThenElse
+
+  assertBool "simple if" $
+    success "if 1 then a 1 else a 2" $
+      If
+        (Const 1)
+        (FunctionCallStatement "a" [Const 1])
+        (FunctionCallStatement "a" [Const 2])
+
+  assertBool "if fails with statement in condition" $ fail "if x := 1 then a 1 else a 2"
+
+unit_statement :: IO ()
+unit_statement = do
+  let success = parseSuccessful statement
+  let fail = parseFailed statement
+
+  assertBool "function call" $ success "f 1 2 3" $ FunctionCallStatement "f" [Const 1, Const 2, Const 3]
+  assertBool "read variable" $ success "read x" $ Read "x"
+  assertBool "read expression fails" $ fail "read x + 2"
+  assertBool "write variable" $ success "write x" $ Write (VariableName "x")
+  assertBool "write complex expression" $
+    success "write x + 2 * 3" $
+      Write $
+        Application $
+          Addition
+            (VariableName "x")
+            ( Application $
+                Multiplication
+                  (Const 2)
+                  (Const 3)
+            )
