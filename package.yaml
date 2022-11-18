@@ -35,6 +35,8 @@ ghc-options:
 
 library:
   source-dirs: src
+  dependencies:
+  - containers
 
 executables:
   L-static-analyzer-exe:
@@ -57,3 +59,4 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - L-static-analyzer
+    - HUnit
