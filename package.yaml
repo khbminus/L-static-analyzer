@@ -51,7 +51,7 @@ executables:
 
 tests:
   L-static-analyzer-test:
-    main:                Spec.hs
+    main:                Test.hs
     source-dirs:         test
     ghc-options:
     - -threaded
@@ -60,3 +60,5 @@ tests:
     dependencies:
     - L-static-analyzer
     - HUnit
+    - tasty-hunit
+    - tasty

@@ -1,7 +1,7 @@
 {-# LANGUAGE PatternSynonyms #-}
 module Execute where
 import Statement (Statement(Write, Read))
-import Context ( Context(error), pattern ErrorContext, setVar, setError )
+import Context ( Context(error, putLine, getNextLine), pattern ErrorContext, setVar, setError )
 import Error (RuntimeError(UnsupportedError, InvalidInputError))
 import Evaluate ( evaluate )
 import Control.Monad (foldM)
@@ -11,14 +11,14 @@ import Text.Read (readMaybe)
 executeStatement :: Context -> Statement -> IO Context
 executeStatement c@ErrorContext _ = pure c
 
-executeStatement cxt (Write expr) = do
-    let (cxt', x) = evaluate cxt expr
+executeStatement cxt (Write expr) =
+    let (cxt', x) = evaluate cxt expr in
     case x of
         Nothing -> cxt'
-        Just res -> print res >> cxt'
+        Just res -> putLine cxt (show res) >> cxt'
 
 executeStatement cxt (Read name) = do
-    line <- getLine
+    line <- getNextLine cxt
     let val = readMaybe line :: Maybe Int
     case val of
         Nothing -> setError cxt $ InvalidInputError line
