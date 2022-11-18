@@ -19,23 +19,23 @@ lexeme = L.lexeme sc
 symbol :: String -> Parser String
 symbol = L.symbol sc
 
-pConst :: Parser Expression
-pConst = Const <$> lexeme L.decimal <?> "const value"
+constValue :: Parser Expression
+constValue = Const <$> lexeme L.decimal <?> "const value"
 
-pName :: Parser String
-pName = (lexeme . try) (p >>= check)
+name :: Parser String
+name = (lexeme . try) (p >>= check)
   where
     p = (:) <$> letterChar <*> many alphaNumChar <?> "Variable"
     check x
       | x `elem` reservedKeywords = fail $ "keyword " ++ show x ++ " cannot be an identifier"
       | otherwise = return x
 
-pVarName :: Parser Expression
-pVarName = VariableName <$> pName
+varName :: Parser Expression
+varName = VariableName <$> name
 
-pFunctionCall :: Parser Expression
-pFunctionCall = do
-  FunctionCall <$> (lexeme pName <?> "Function name") <*> (arguments <?> "arguments")
+funCall :: Parser Expression
+funCall = do
+  FunctionCall <$> (lexeme name <?> "Function name") <*> (arguments <?> "arguments")
   where
     arguments :: Parser [Expression]
     arguments = (:) <$> expression <*> many expression
@@ -47,16 +47,10 @@ expressionTerm :: Parser Expression
 expressionTerm =
   choice
     [ parens expression,
-      try pFunctionCall,
-      pVarName,
-      pConst
+      try funCall,
+      varName,
+      constValue
     ]
-
-binary :: String -> (Expression -> Expression -> Expression) -> Operator Parser Expression
-binary name f = InfixL (f <$ symbol name)
-
-compose :: (Expression -> Expression -> Operations) -> Expression -> Expression -> Expression
-compose f a b = Application $ f a b
 
 expressionOperationsTable :: [[Operator Parser Expression]]
 expressionOperationsTable =
@@ -79,13 +73,19 @@ expressionOperationsTable =
     [ binary "||" $ compose LazyOr
     ]
   ]
+  where
+    binary :: String -> (Expression -> Expression -> Expression) -> Operator Parser Expression
+    binary name f = InfixL (f <$ symbol name)
+
+    compose :: (Expression -> Expression -> Operations) -> Expression -> Expression -> Expression
+    compose f a b = Application $ f a b
 
 expression :: Parser Expression
 expression = makeExprParser expressionTerm expressionOperationsTable
 
 letVariable :: Parser Statement
 letVariable =
-  Let <$> (lexeme pName <?> "Variable name") <*> (symbol ":=" *> expression) <?> "Variable let"
+  Let <$> (lexeme name <?> "Variable name") <*> (symbol ":=" *> expression) <?> "Variable let"
 
 write :: Parser Statement
 write = do
@@ -93,7 +93,7 @@ write = do
 
 readVariable :: Parser Statement
 readVariable = do
-  Read <$> (symbol "read" *> pName <?> "Read statement")
+  Read <$> (symbol "read" *> name <?> "Read statement")
 
 while :: Parser Statement
 while =
@@ -108,10 +108,10 @@ ifThenElse =
     <*> (symbol "then" *> statement <?> "True statement")
     <*> (symbol "else" *> statement <?> "False Statement")
 
-functionCallStatement :: Parser Statement
-functionCallStatement =
+funCallStatement :: Parser Statement
+funCallStatement =
   FunctionCallStatement
-    <$> (pName <?> "function name")
+    <$> (name <?> "function name")
     <*> (arguments <?> "arguments")
   where
     arguments :: Parser [Expression]
@@ -124,6 +124,6 @@ statement =
       readVariable,
       while,
       ifThenElse,
-      try functionCallStatement,
+      try funCallStatement,
       letVariable
     ]
