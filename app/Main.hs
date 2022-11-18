@@ -1,11 +1,19 @@
 module Main (main) where
 
-import Statement(Statement(Write), Expression(Const))
-import Execute (executeStatement)
-import GHC.Base (IO(IO))
-import Context ( Context(Context, io), FunContext(FunContext), emptyContext)
+import Statement(Statement(Write, Skip), Expression(Const))
+import Execute (execute)
+import Context (emptyContext, error)
 
 main :: IO ()
 main = do
     let st = Write (Const 1)
-    io $ executeStatement emptyContext st
+    let err = Skip
+    res <- execute emptyContext [st, st, st]
+    case Context.error res of
+        Nothing -> putStrLn "Success!"
+        Just err -> putStrLn $ "Error: " ++ show err
+
+    res <- execute emptyContext [st, err, st]
+    case Context.error res of
+        Nothing -> putStrLn "Success!"
+        Just err -> putStrLn $ "Error: " ++ show err

@@ -30,6 +30,7 @@ data Statement
   | Read String
   | While Expression Statement
   | If Expression Statement Statement
+  | Skip
   deriving (Show, Eq)
 
 reservedKeywords :: [String]

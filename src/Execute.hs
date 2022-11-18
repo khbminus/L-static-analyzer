@@ -1,14 +1,21 @@
+{-# LANGUAGE PatternSynonyms #-}
 module Execute where
 import Statement (Statement(Write))
-import Context (Context(io, error))
+import Context ( Context(error), pattern ErrorContext )
 import Error (RuntimeError(UnsupportedError))
 import Evaluate ( evaluate )
+import Control.Monad (foldM)
 
 
-executeStatement :: Context -> Statement -> Context
-executeStatement cxt (Write expr) = cxt' { io = io cxt' >> putStrLn unwrap_x } where
-    (cxt', x) = evaluate cxt expr
-    unwrap_x = case x of
+executeStatement :: Context -> Statement -> IO Context
+executeStatement c@ErrorContext _ = pure c
+executeStatement cxt (Write expr) = do
+    let (cxt', x) = evaluate cxt expr
+    putStrLn (case x of
         Left err -> show err
-        Right res -> show res
-executeStatement cxt _ = cxt { Context.error = Just UnsupportedError }
+        Right res -> show res)
+    cxt'
+executeStatement cxt _ = pure $ cxt { Context.error = Just UnsupportedError }
+
+execute :: Context -> [Statement] -> IO Context
+execute = foldM executeStatement

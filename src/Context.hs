@@ -1,3 +1,4 @@
+{-# LANGUAGE PatternSynonyms #-}
 module Context where
 import Error ( RuntimeError(VarNameError) )
 import qualified Data.Map as Map
@@ -15,12 +16,14 @@ getVar cxt var = let x = Map.lookup var (context cxt) in
 emptyVarContext :: VarContext
 emptyVarContext = VarContext { context = Map.empty }
 
-data Context = Context { funs :: FunContext, vars :: VarContext, io :: IO (), error :: Maybe RuntimeError }
+data Context = Context { funs :: FunContext, vars :: VarContext, error :: Maybe RuntimeError }
 
 emptyContext :: Context
 emptyContext = Context {
     funs = FunContext,
     vars = emptyVarContext,
-    io = pure (),
     Context.error = Nothing
 }
+
+pattern ErrorContext :: Context
+pattern ErrorContext <- Context { Context.error = (Just _) }
