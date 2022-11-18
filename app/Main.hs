@@ -1,19 +1,16 @@
 module Main (main) where
 
-import Statement(Statement(Write, Skip), Expression(Const))
-import Execute (execute)
-import Context (emptyContext, error)
+import Statement(Statement(Write, Skip, Read), Expression(Const, VariableName))
+import Execute (run)
+import Context (emptyContext)
 
 main :: IO ()
 main = do
-    let st = Write (Const 1)
+    let writeConst = Write (Const 1)
+    let writeVar = Write (VariableName "var")
     let err = Skip
-    res <- execute emptyContext [st, st, st]
-    case Context.error res of
-        Nothing -> putStrLn "Success!"
-        Just err -> putStrLn $ "Error: " ++ show err
+    let readVar = Read "var"
 
-    res <- execute emptyContext [st, err, st]
-    case Context.error res of
-        Nothing -> putStrLn "Success!"
-        Just err -> putStrLn $ "Error: " ++ show err
+    run emptyContext [readVar, writeVar]
+    run emptyContext [readVar]
+    run emptyContext [writeVar]
