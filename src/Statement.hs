@@ -28,8 +28,9 @@ data Statement
   | FunctionCallStatement String [Expression]
   | Write Expression
   | Read String
-  | While Expression Statement
-  | If Expression Statement Statement
+  | While Expression [Statement]
+  | If Expression [Statement] [Statement]
+  | Skip
   deriving (Show, Eq)
 
 reservedKeywords :: [String]

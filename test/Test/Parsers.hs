@@ -70,12 +70,12 @@ unit_let = do
   let success = parseSuccessful letVariable
   let fail = parseFailed letVariable
 
-  assertBool "to const" $ success "x := 1" (Let "x" (Const 1))
-  assertBool "reassign" $ success "x := x" (Let "x" (VariableName "x"))
+  assertBool "to const" $ success "x := 1" [Let "x" (Const 1)]
+  assertBool "reassign" $ success "x := x" [Let "x" (VariableName "x")]
   assertBool "compicated expression" $
     success
       "x := y % 4 + 2 * 3"
-      ( Let
+      [ Let
           "x"
           ( Application $
               Addition
@@ -90,7 +90,7 @@ unit_let = do
                       (Const 3)
                 )
           )
-      )
+      ]
 
   assertBool "assign statement" $ fail "x := while 1 do 2"
 
@@ -116,18 +116,22 @@ unit_while = do
   let success = parseSuccessful while
   let fail = parseFailed while
 
-  assertBool "simple while" $ success "while 1 do x := x" $ While (Const 1) (Let "x" (VariableName "x"))
+  assertBool "simple while" $ success "while 1 do x := x" [While (Const 1) [Let "x" (VariableName "x")]]
   assertBool "complicated expression" $
-    success "while 1 + 2 do x := x" $
-      While
-        (Application $ Addition (Const 1) (Const 2))
-        (Let "x" (VariableName "x"))
+    success
+      "while 1 + 2 do x := x"
+      [ While
+          (Application $ Addition (Const 1) (Const 2))
+          [Let "x" (VariableName "x")]
+      ]
 
   assertBool "function call" $
-    success "while f 1 do x := x" $
-      While
-        (FunctionCall "f" [Const 1])
-        (Let "x" (VariableName "x"))
+    success
+      "while f 1 do x := x"
+      [ While
+          (FunctionCall "f" [Const 1])
+          [Let "x" (VariableName "x")]
+      ]
 
   assertBool "just while fails" $ fail "while"
   assertBool "just while-do failes" $ fail "while do"
@@ -140,11 +144,13 @@ unit_if = do
   let fail = parseFailed ifThenElse
 
   assertBool "simple if" $
-    success "if 1 then a 1 else a 2" $
-      If
-        (Const 1)
-        (FunctionCallStatement "a" [Const 1])
-        (FunctionCallStatement "a" [Const 2])
+    success
+      "if 1 then a 1 else a 2"
+      [ If
+          (Const 1)
+          [FunctionCallStatement "a" [Const 1]]
+          [FunctionCallStatement "a" [Const 2]]
+      ]
 
   assertBool "if fails with statement in condition" $ fail "if x := 1 then a 1 else a 2"
 
@@ -153,18 +159,31 @@ unit_statement = do
   let success = parseSuccessful statement
   let fail = parseFailed statement
 
-  assertBool "function call" $ success "f 1 2 3" $ FunctionCallStatement "f" [Const 1, Const 2, Const 3]
-  assertBool "read variable" $ success "read x" $ Read "x"
+  assertBool "function call" $ success "f 1 2 3" [FunctionCallStatement "f" [Const 1, Const 2, Const 3]]
+  assertBool "read variable" $ success "read x" [Read "x"]
   assertBool "read expression fails" $ fail "read x + 2"
-  assertBool "write variable" $ success "write x" $ Write (VariableName "x")
+  assertBool "write variable" $ success "write x" [Write (VariableName "x")]
   assertBool "write complex expression" $
-    success "write x + 2 * 3" $
-      Write $
-        Application $
-          Addition
-            (VariableName "x")
-            ( Application $
-                Multiplication
-                  (Const 2)
-                  (Const 3)
-            )
+    success
+      "write x + 2 * 3"
+      [ Write $
+          Application $
+            Addition
+              (VariableName "x")
+              ( Application $
+                  Multiplication
+                    (Const 2)
+                    (Const 3)
+              )
+      ]
+  assertBool "skip statement" $ success "skip" [Skip]
+  assertBool "multiplie statements" $ success "x := a; y := b" [Let "x" $ VariableName "a", Let "y" $ VariableName "b"]
+  assertBool "while with long body" $
+    success
+      "while 1 do x := a; y := b"
+      [ While
+          (Const 1)
+          [ Let "x" $ VariableName "a",
+            Let "y" $ VariableName "b"
+          ]
+      ]

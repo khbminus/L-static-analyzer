@@ -83,47 +83,62 @@ expressionOperationsTable =
 expression :: Parser Expression
 expression = makeExprParser expressionTerm expressionOperationsTable
 
-letVariable :: Parser Statement
-letVariable =
-  Let <$> (lexeme name <?> "Variable name") <*> (symbol ":=" *> expression) <?> "Variable let"
+singleton :: a -> [a]
+singleton x = [x]
 
-write :: Parser Statement
-write = do
-  Write <$> (symbol "write" *> expression) <?> "while statement"
+letVariable :: Parser [Statement]
+letVariable = singleton <$> (Let <$> (lexeme name <?> "Variable name") <*> (symbol ":=" *> expression) <?> "Variable let")
 
-readVariable :: Parser Statement
-readVariable = do
-  Read <$> (symbol "read" *> name <?> "Read statement")
+write :: Parser [Statement]
+write = singleton . Write <$> (symbol "write" *> expression) <?> "write statement"
 
-while :: Parser Statement
+readVariable :: Parser [Statement]
+readVariable = singleton . Read <$> (symbol "read" *> name <?> "Read statement")
+
+while :: Parser [Statement]
 while =
-  While
-    <$> (between (symbol "while") (symbol "do") expression <?> "While condition")
-    <*> (statement <?> "While statement")
+  singleton
+    <$> ( While
+            <$> (between (symbol "while") (symbol "do") expression <?> "While condition")
+            <*> (statement <?> "While statement")
+        )
 
-ifThenElse :: Parser Statement
+ifThenElse :: Parser [Statement]
 ifThenElse =
-  If
-    <$> (symbol "if" *> expression <?> "If condition")
-    <*> (symbol "then" *> statement <?> "True statement")
-    <*> (symbol "else" *> statement <?> "False Statement")
+  singleton
+    <$> ( If
+            <$> (symbol "if" *> expression <?> "If condition")
+            <*> (symbol "then" *> statement <?> "True statement")
+            <*> (symbol "else" *> statement <?> "False Statement")
+        )
 
-funCallStatement :: Parser Statement
+funCallStatement :: Parser [Statement]
 funCallStatement =
-  FunctionCallStatement
-    <$> (name <?> "function name")
-    <*> (arguments <?> "arguments")
+  singleton
+    <$> ( FunctionCallStatement
+            <$> (name <?> "function name")
+            <*> (arguments <?> "arguments")
+        )
   where
     arguments :: Parser [Expression]
     arguments = (:) <$> expression <*> many expression
 
-statement :: Parser Statement
+skip :: Parser [Statement]
+skip = [Skip] <$ symbol "skip"
+
+split :: Parser [Statement]
+split = concat <$> (statement `sepBy1` symbol ";")
+
+statement :: Parser [Statement]
 statement =
-  choice
-    [ write,
-      readVariable,
-      while,
-      ifThenElse,
-      try funCallStatement,
-      letVariable
-    ]
+  try while <|> try ifThenElse
+    <|> (concat <$> (terms `sepBy1` symbol ";"))
+  where
+    terms =
+      choice
+        [ write,
+          readVariable,
+          skip,
+          try funCallStatement,
+          letVariable
+        ]
