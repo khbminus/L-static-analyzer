@@ -1,6 +1,19 @@
 module Main (main) where
 
-import Lib
+import Statement(Statement(Write, Skip, Read), Expression(Const, VariableName))
+import Execute (run)
+import Context (emptyContext)
 
 main :: IO ()
-main = someFunc
+main = do
+    let writeConst = Write (Const 1)
+    let writeVar = Write (VariableName "var")
+    let skip = Skip
+    let readVar = Read "var"
+
+    run emptyContext [readVar, writeVar]
+    run emptyContext [readVar]
+    run emptyContext [writeVar]
+    run emptyContext [writeConst]
+    run emptyContext [skip]
+
