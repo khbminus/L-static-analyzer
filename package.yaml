@@ -48,6 +48,8 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - L-static-analyzer
+    - filepath
+    - optparse-applicative
 
 tests:
   L-static-analyzer-test:

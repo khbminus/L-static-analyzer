@@ -49,7 +49,9 @@ executable L-static-analyzer-exe
   build-depends:
       L-static-analyzer
     , base >=4.7 && <5
+    , filepath
     , megaparsec
+    , optparse-applicative
     , parser-combinators
   default-language: Haskell2010
 
