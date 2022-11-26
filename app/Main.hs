@@ -1,8 +1,8 @@
 module Main (main) where
 
 import Statement(Statement(Write, Skip, Read), Expression(Const, VariableName))
-import Execute (run)
-import Context (emptyContext)
+--import Execute (run)
+import Context (empty)
 
 main :: IO ()
 main = do
@@ -11,9 +11,10 @@ main = do
     let skip = Skip
     let readVar = Read "var"
 
-    run emptyContext [readVar, writeVar]
-    run emptyContext [readVar]
-    run emptyContext [writeVar]
-    run emptyContext [writeConst]
-    run emptyContext [skip]
+    print readVar
+--    run singleton [readVar, writeVar]
+--    run singleton [readVar]
+--    run singleton [writeVar]
+--    run singleton [writeConst]
+--    run singleton [skip]
 

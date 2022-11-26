@@ -4,7 +4,7 @@ module Test.Execute where
 import Test.Tasty.HUnit (assertEqual)
 import Statement (Expression(VariableName, Const), Statement (Skip, Write, Read))
 import Execute (execute)
-import Context (Context(..), emptyContext, setVar, setError)
+import Context (Context(..), empty, setVar, setError)
 import Error (RuntimeError(VarNameError, UnsupportedError, InvalidInputError))
 import Data.IORef (IORef, newIORef, readIORef, atomicModifyIORef, modifyIORef)
 import qualified GHC.Err as Err
@@ -23,7 +23,7 @@ initTestContext input = do
     let putTestLine :: String -> IO ()
         putTestLine str = atomicModifyIORef outputsRef (\inputs -> (inputs ++ [str], ()))
 
-    pure (emptyContext {getNextLine = getTestLine, putLine = putTestLine }, getOutput)
+    pure (empty {getNextLine = getTestLine, putLine = putTestLine }, getOutput)
 
 unit_executeWrite :: IO ()
 unit_executeWrite = do
@@ -54,8 +54,8 @@ unit_executeUnsupported :: IO ()
 unit_executeUnsupported = do
     let skip = Skip
 
-    exitContext <- execute emptyContext [skip]
-    context     <- setError emptyContext UnsupportedError
+    exitContext <- execute empty [skip]
+    context     <- setError empty UnsupportedError
     assertEqual "unsupported" context exitContext
 
 unit_executeRead :: IO ()
