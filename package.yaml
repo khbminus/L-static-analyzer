@@ -21,6 +21,7 @@ description:         Please see the README on GitHub at <https://github.com/khbm
 
 dependencies:
 - base >= 4.7 && < 5
+- containers
 - megaparsec
 - parser-combinators
 
@@ -37,6 +38,9 @@ ghc-options:
 
 library:
   source-dirs: src
+  dependencies:
+  - containers
+  - optparse-applicative
 
 executables:
   L-static-analyzer-exe:
@@ -48,7 +52,6 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - L-static-analyzer
-    - filepath
     - optparse-applicative
 
 tests:
@@ -70,3 +73,6 @@ tests:
     - tasty-hunit
     - tasty-discover
     - L-static-analyzer
+    - HUnit
+    - tasty-hunit
+    - tasty

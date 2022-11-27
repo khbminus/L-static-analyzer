@@ -19,8 +19,11 @@ lexeme = L.lexeme sc
 symbol :: String -> Parser String
 symbol = L.symbol sc
 
+decimal :: Parser Int
+decimal = L.decimal
+
 constValue :: Parser Expression
-constValue = Const <$> lexeme L.decimal <?> "const value"
+constValue = Const <$> lexeme decimal <?> "const value"
 
 name :: Parser String
 name = (lexeme . try) (p >>= check)
@@ -142,3 +145,10 @@ statement =
           try funCallStatement,
           letVariable
         ]
+
+
+parseInput :: String -> [Statement]
+parseInput input = let res = parse statement "" input in
+  case res of
+    Left err -> error (show err)
+    Right sts -> sts

@@ -26,8 +26,11 @@ source-repository head
 library
   exposed-modules:
       CommandLineParser
+      Context
+      Error
+      Evaluate
+      Execute
       Grammar
-      Lib
       Statement
   other-modules:
       Paths_L_static_analyzer
@@ -36,7 +39,9 @@ library
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       base >=4.7 && <5
+    , containers
     , megaparsec
+    , optparse-applicative
     , parser-combinators
   default-language: Haskell2010
 
@@ -50,7 +55,7 @@ executable L-static-analyzer-exe
   build-depends:
       L-static-analyzer
     , base >=4.7 && <5
-    , filepath
+    , containers
     , megaparsec
     , optparse-applicative
     , parser-combinators
@@ -71,6 +76,7 @@ test-suite L-static-analyzer-test
     , HUnit-approx
     , L-static-analyzer
     , base >=4.7 && <5
+    , containers
     , hedgehog
     , hspec
     , hspec-megaparsec
