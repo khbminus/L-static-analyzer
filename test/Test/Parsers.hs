@@ -94,7 +94,6 @@ unit_let = do
 
   assertBool "assign statement" $ fail "x := while 1 do 2"
 
-  -- TODO: uncomment this (see Grammar.hs for details)
   assertBool "assign function call" $
     success
       "loooooong := function(first, second, third, 1, 2 + 3)"
