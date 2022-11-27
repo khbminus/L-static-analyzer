@@ -25,6 +25,7 @@ source-repository head
 
 library
   exposed-modules:
+      CommandLineParser
       Grammar
       Lib
       Statement
@@ -59,6 +60,7 @@ test-suite L-static-analyzer-test
   type: exitcode-stdio-1.0
   main-is: Test.hs
   other-modules:
+      Test.Console
       Test.Parsers
       Paths_L_static_analyzer
   hs-source-dirs:
