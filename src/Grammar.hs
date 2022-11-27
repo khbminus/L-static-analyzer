@@ -146,9 +146,5 @@ statement =
           letVariable
         ]
 
-
-parseInput :: String -> [Statement]
-parseInput input = let res = parse statement "" input in
-  case res of
-    Left err -> error (show err)
-    Right sts -> sts
+parseInput :: String -> Either (ParseErrorBundle String Void) [Statement]
+parseInput input = parse statement "" input
