@@ -4,21 +4,23 @@ import qualified Data.Map as Map
 
 data FunContext = FunContext deriving (Show, Eq)
 
-data VarContext = VarContext { context :: Map.Map String Int } deriving (Show, Eq)
+newtype VarContext = VarContext {context :: Map.Map String Int} deriving (Show, Eq)
+
+data InputSource = InputSource { fileName :: String, inputLines :: [String] } deriving (Show)
 
 emptyVarContext :: VarContext
 emptyVarContext = VarContext { context = Map.empty }
 
-data Context = Context 
+data Context = Context
     { funs :: FunContext
     , vars :: VarContext
-    , input :: [String]
+    , input :: InputSource
     , output :: [String]
-    }
+    } deriving Show
 
-instance Show Context where
-    show :: Context -> String
-    show cxt = "Functions: " ++ show (funs cxt) ++ "\nVariables: " ++ show (vars cxt)
+--instance Show Context where
+--    show :: Context -> String
+--    show cxt = "Functions: " ++ show (funs cxt) ++ "\nVariables: " ++ show (vars cxt)
 
 instance Eq Context where
     (==) :: Context -> Context -> Bool
@@ -28,7 +30,7 @@ empty :: Context
 empty = Context
     { funs = FunContext
     , vars = emptyVarContext
-    , input = []
+    , input = InputSource "null" []
     , output = []
     }
 

@@ -2,7 +2,7 @@
 
 module Evaluate (evaluateStatements, evaluateOneStatement, evaluateExpression) where
 
-import Context (Context (..), getVar, setVar)
+import Context (Context (..), InputSource (..), getVar, setVar)
 import Control.Monad.State.Lazy
 import Data.Maybe (fromMaybe)
 import Error (RuntimeError (UnsupportedError))
@@ -71,7 +71,7 @@ evaluateOneStatement (Write expr) = do
 evaluateOneStatement (Read val) = do
   ctx <- get
   let value = 0 -- TODO: make it works
-  put (setVar ctx val value) {input = tail $ input ctx}
+  put (setVar ctx val value) {input = (input ctx) {inputLines = tail $ inputLines $ input ctx}}
 
 evaluateStatements :: [Statement] -> State Context ()
 evaluateStatements [] = pure ()
