@@ -5,8 +5,9 @@ module Evaluate (evaluateStatements, evaluateOneStatement, evaluateExpression) w
 import Context (Context (..), InputSource (..), getVar, setVar)
 import Control.Monad.State.Lazy
 import Data.Maybe (fromMaybe)
-import Error (RuntimeError (UnsupportedError))
 import Statement (Expression (..), Operations (..), Statement (..))
+import Grammar (number)
+import Text.Megaparsec (runParser, eof)
 
 evaluateExpression :: Expression -> Context -> Int
 evaluateExpression (Const x) _ = x
@@ -70,8 +71,12 @@ evaluateOneStatement (Write expr) = do
   put ctx {output = output ctx ++ [show value]}
 evaluateOneStatement (Read val) = do
   ctx <- get
-  let value = 0 -- TODO: make it works
-  put (setVar ctx val value) {input = (input ctx) {inputLines = tail $ inputLines $ input ctx}}
+  case (inputLines . input) ctx of
+    [] -> undefined -- FIXME
+    (x : xs) -> do
+      case runParser (number <* eof) (fileName $ input ctx) x of
+        Left _ -> undefined -- FIXME
+        Right value -> put (setVar ctx val value) {input = (input ctx) {inputLines = xs}}
 
 evaluateStatements :: [Statement] -> State Context ()
 evaluateStatements [] = pure ()
