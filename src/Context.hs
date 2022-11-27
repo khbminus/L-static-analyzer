@@ -39,7 +39,7 @@ getVar cxt var =
   let mp = context . vars $ cxt
    in Map.lookup var mp
 
-setVar :: Context -> String -> Int -> Context
-setVar cxt name val =
-  let mp = context . vars $ cxt
-   in cxt {vars = VarContext $ Map.insert name val mp}
+setVar :: String -> Int -> Context -> Context
+setVar name val ctx =
+  let mp = context . vars $ ctx
+   in ctx {vars = VarContext $ Map.insert name val mp}

@@ -1,38 +1,48 @@
-{-# LANGUAGE BangPatterns #-}
-
 module Evaluate (evaluateStatements, evaluateOneStatement, evaluateExpression) where
 
 import Context (Context (..), InputSource (..), getVar, setVar)
-import Control.Monad.State.Lazy
-import Data.Maybe (fromMaybe)
-import Statement (Expression (..), Operations (..), Statement (..))
+import Control.Composition
+import Control.Monad.State
+import Error (RuntimeError (..))
 import Grammar (number)
-import Text.Megaparsec (runParser, eof)
+import Statement (Expression (..), Operations (..), Statement (..))
+import Text.Megaparsec (eof, runParser)
 
-evaluateExpression :: Expression -> Context -> Int
-evaluateExpression (Const x) _ = x
-evaluateExpression (VariableName name) ctx = fromMaybe undefined (getVar ctx name)
-evaluateExpression (FunctionCall _ _) _ = undefined
-evaluateExpression (Application op) ctx = evaluateOp op ctx
+evaluateExpression :: Expression -> StateT Context (Either RuntimeError) Int
+evaluateExpression (Const x) = return x
+evaluateExpression (VariableName name) = do
+  ctx <- get
+  case getVar ctx name of
+    Just x -> return x
+    _ -> lift $ Left $ VarNotFound name
+evaluateExpression (FunctionCall name _) = lift $ Left $ FunctionNotFound name
+evaluateExpression (Application op') = do
+  let (x, y, op) = unpack op'
+  x' <- evaluateExpression x
+  y' <- evaluateExpression y
+  return $ op x' y'
   where
-    evaluateOp :: Operations -> Context -> Int
-    evaluateOp (Addition lft rgt) ctx = evaluateExpression lft ctx + evaluateExpression rgt ctx
-    evaluateOp (Subtraction lft rgt) ctx = evaluateExpression lft ctx - evaluateExpression rgt ctx
-    evaluateOp (Division lft rgt) ctx = evaluateExpression lft ctx `div` evaluateExpression rgt ctx
-    evaluateOp (Multiplication lft rgt) ctx = evaluateExpression lft ctx * evaluateExpression rgt ctx
-    evaluateOp (Modulo lft rgt) ctx = evaluateExpression lft ctx `mod` evaluateExpression rgt ctx
-    evaluateOp (Equals lft rgt) ctx = fromBool $ evaluateExpression lft ctx == evaluateExpression rgt ctx
-    evaluateOp (NotEquals lft rgt) ctx = fromBool $ evaluateExpression lft ctx /= evaluateExpression rgt ctx
-    evaluateOp (Greater lft rgt) ctx = fromBool $ evaluateExpression lft ctx > evaluateExpression rgt ctx
-    evaluateOp (GreaterOrEquals lft rgt) ctx = fromBool $ evaluateExpression lft ctx >= evaluateExpression rgt ctx
-    evaluateOp (Less lft rgt) ctx = fromBool $ evaluateExpression lft ctx < evaluateExpression rgt ctx
-    evaluateOp (LessOrEquals lft rgt) ctx = fromBool $ evaluateExpression lft ctx <= evaluateExpression rgt ctx
-    evaluateOp (LazyAnd lft rgt) ctx = case evaluateExpression lft ctx of
-      0 -> 0
-      _ -> boolToInt $ evaluateExpression rgt ctx
-    evaluateOp (LazyOr lft rgt) ctx = case evaluateExpression lft ctx of
-      0 -> boolToInt $ evaluateExpression rgt ctx
-      _ -> 1
+    -- FIXME: fix that crappy design
+    unpack :: Operations -> (Expression, Expression, Int -> Int -> Int)
+    unpack (Addition lft rgt) = (lft, rgt, (+))
+    unpack (Subtraction lft rgt) = (lft, rgt, (-))
+    unpack (Division lft rgt) = (lft, rgt, div)
+    unpack (Multiplication lft rgt) = (lft, rgt, (*))
+    unpack (Modulo lft rgt) = (lft, rgt, mod)
+    unpack (Equals lft rgt) = (lft, rgt, fromBool .* (==))
+    unpack (NotEquals lft rgt) = (lft, rgt, fromBool .* (/=))
+    unpack (Greater lft rgt) = (lft, rgt, fromBool .* (>))
+    unpack (GreaterOrEquals lft rgt) = (lft, rgt, fromBool .* (>=))
+    unpack (Less lft rgt) = (lft, rgt, fromBool .* (<))
+    unpack (LessOrEquals lft rgt) = (lft, rgt, fromBool .* (<=))
+    unpack (LazyAnd lft rgt) = (lft, rgt, lazyAnd)
+    unpack (LazyOr lft rgt) = (lft, rgt, lazyOr)
+
+    lazyAnd :: Int -> Int -> Int
+    lazyAnd lft rgt = if lft == 0 then 0 else boolToInt rgt
+
+    lazyOr :: Int -> Int -> Int
+    lazyOr lft rgt = if lft /= 0 then 1 else boolToInt rgt
 
     fromBool :: Bool -> Int
     fromBool True = 1
@@ -46,39 +56,36 @@ toBool :: Int -> Bool
 toBool 0 = False
 toBool _ = True
 
-evaluateOneStatement :: Statement -> State Context ()
+evaluateOneStatement :: Statement -> StateT Context (Either RuntimeError) ()
 evaluateOneStatement (Let name value) = do
-  ctx <- get
-  let !value' = evaluateExpression value ctx
-  put $ setVar ctx name value'
+  value' <- evaluateExpression value
+  modify (setVar name value')
 evaluateOneStatement Skip = pure ()
 evaluateOneStatement (While expression statements) = do
-  ctx <- get
-  let !value = evaluateExpression expression ctx
+  value <- evaluateExpression expression
   if toBool value
     then return ()
     else evaluateStatements statements
 evaluateOneStatement (If expression trueStatements falseStatements) = do
-  ctx <- get
-  let !value = evaluateExpression expression ctx
+  value <- evaluateExpression expression
   if toBool value
     then evaluateStatements trueStatements
     else evaluateStatements falseStatements
 evaluateOneStatement (FunctionCallStatement name args) = pure ()
 evaluateOneStatement (Write expr) = do
+  value <- evaluateExpression expr
   ctx <- get
-  let !value = evaluateExpression expr ctx
-  put ctx {output = output ctx ++ [show value]}
+  put $ ctx {output = output ctx ++ [show value]}
 evaluateOneStatement (Read val) = do
   ctx <- get
   case (inputLines . input) ctx of
-    [] -> undefined -- FIXME
+    [] -> lift $ Left UnexpectedEOF
     (x : xs) -> do
       case runParser (number <* eof) (fileName $ input ctx) x of
-        Left _ -> undefined -- FIXME
-        Right value -> put (setVar ctx val value) {input = (input ctx) {inputLines = xs}}
+        Left e -> lift $ Left $ ParserError e
+        Right value -> put (setVar val value ctx) {input = (input ctx) {inputLines = xs}}
 
-evaluateStatements :: [Statement] -> State Context ()
+evaluateStatements :: [Statement] -> StateT Context (Either RuntimeError) ()
 evaluateStatements [] = pure ()
 evaluateStatements (x : xs) = do
   evaluateOneStatement x
