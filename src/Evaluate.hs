@@ -7,20 +7,28 @@ import Error (RuntimeError (..))
 import Grammar (number)
 import Statement (Expression (..), Operations (..), Statement (..))
 import Text.Megaparsec (eof, runParser)
+import Text.Read (readMaybe)
 
-evaluateExpression :: Expression -> StateT Context (Either RuntimeError) Int
-evaluateExpression (Const x) = return x
+evaluateExpression :: Expression -> StateT Context IO (Maybe Int)
+evaluateExpression (Const x) = return $ Just x
 evaluateExpression (VariableName name) = do
   ctx <- get
   case getVar ctx name of
-    Just x -> return x
-    _ -> lift $ Left $ VarNotFound name
-evaluateExpression (FunctionCall name _) = lift $ Left $ FunctionNotFound name
+    x@(Just _) -> return x
+    Nothing -> do
+      put (ctx { Context.error = Just $ VarNotFound name })
+      return Nothing
+evaluateExpression (FunctionCall name _) = do
+  ctx <- get
+  put $ ctx { Context.error = Just $ FunctionNotFound name }
+  return Nothing
 evaluateExpression (Application op') = do
   let (x, y, op) = unpack op'
   x' <- evaluateExpression x
   y' <- evaluateExpression y
-  return $ op x' y'
+  case (x', y') of
+    (Just val_x, Just val_y) -> return $ Just $ op val_x val_y
+    (_, _) -> return Nothing
   where
     -- FIXME: fix that crappy design
     unpack :: Operations -> (Expression, Expression, Int -> Int -> Int)
@@ -56,36 +64,40 @@ toBool :: Int -> Bool
 toBool 0 = False
 toBool _ = True
 
-evaluateOneStatement :: Statement -> StateT Context (Either RuntimeError) ()
+evaluateOneStatement :: Statement -> StateT Context IO ()
 evaluateOneStatement (Let name value) = do
   value' <- evaluateExpression value
-  modify (setVar name value')
+  case value' of
+    Just val -> modify (setVar name val)
+    Nothing -> pure ()
 evaluateOneStatement Skip = pure ()
 evaluateOneStatement (While expression statements) = do
   value <- evaluateExpression expression
-  if toBool value
-    then return ()
-    else evaluateStatements statements
+  case value of
+    Just val | toBool val -> pure ()
+             | otherwise -> evaluateStatements statements
+    Nothing -> pure ()
 evaluateOneStatement (If expression trueStatements falseStatements) = do
   value <- evaluateExpression expression
-  if toBool value
-    then evaluateStatements trueStatements
-    else evaluateStatements falseStatements
-evaluateOneStatement (FunctionCallStatement name args) = pure ()
+  case value of
+    Just val | toBool val -> evaluateStatements trueStatements
+             | otherwise -> evaluateStatements falseStatements
+    Nothing -> pure ()
+evaluateOneStatement (FunctionCallStatement _ _) = pure ()
 evaluateOneStatement (Write expr) = do
   value <- evaluateExpression expr
+  case value of
+    Just val -> lift $ print val
+    Nothing -> pure ()
+  
+evaluateOneStatement (Read var) = do
   ctx <- get
-  put $ ctx {output = output ctx ++ [show value]}
-evaluateOneStatement (Read val) = do
-  ctx <- get
-  case (inputLines . input) ctx of
-    [] -> lift $ Left UnexpectedEOF
-    (x : xs) -> do
-      case runParser (number <* eof) (fileName $ input ctx) x of
-        Left e -> lift $ Left $ ParserError e
-        Right value -> put (setVar val value ctx) {input = (input ctx) {inputLines = xs}}
+  inp <- lift getLine
+  case readMaybe inp :: Maybe Int of
+    Nothing -> put $ ctx { Context.error = Nothing }
+    Just val -> put $ setVar var val ctx
 
-evaluateStatements :: [Statement] -> StateT Context (Either RuntimeError) ()
+evaluateStatements :: [Statement] -> StateT Context IO ()
 evaluateStatements [] = pure ()
 evaluateStatements (x : xs) = do
   evaluateOneStatement x

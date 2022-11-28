@@ -8,3 +8,4 @@ data RuntimeError = ParserError ParsecError
                   | VarNotFound String
                   | FunctionNotFound String
                   | UnexpectedEOF
+                  deriving (Show, Eq)

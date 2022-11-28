@@ -7,11 +7,13 @@ import Evaluate (evaluateStatements)
 import Grammar (statement)
 import Text.Megaparsec (eof, runParser)
 
-run :: String -> [String] -> StateT Context (Either RuntimeError) ()
-run _ [] = return ()
-run fileName (x : xs) = do
-  case runParser (statement <* eof) fileName x of
-    Left err -> lift $ Left $ ParserError err
+run :: [String] -> StateT Context IO ()
+run [] = return ()
+run (x : xs) = do
+  cxt <- get
+  guard ( Context.error cxt == Nothing )
+  case runParser (statement <* eof) "" x of
+    Left err -> put $ cxt { Context.error = Just $ ParserError err }
     Right statements -> do
       evaluateStatements statements
-      run fileName xs
+      run xs
