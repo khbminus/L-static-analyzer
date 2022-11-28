@@ -29,7 +29,7 @@ name :: Parser String
 name = (lexeme . try) (p >>= check)
   where
     p = (:) <$> letterChar <*> many alphaNumChar <?> "Variable"
-    check x -- TODO: check for function names are required due to `f argument1 argument2 1` issue
+    check x
       | x `elem` reservedKeywords = fail $ "keyword " ++ show x ++ " cannot be an identifier"
       | otherwise = return x
 

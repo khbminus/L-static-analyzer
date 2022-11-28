@@ -1,77 +1,71 @@
-{-# LANGUAGE LambdaCase #-}
 module Test.Execute where
---
---import Test.Tasty.HUnit (assertEqual)
---import Statement (Expression(VariableName, Const), Statement (Skip, Write, Read))
---import Execute (execute)
---import Context (Context(..), empty, setVar, setError)
---import Error (RuntimeError(VarNameError, UnsupportedError, InvalidInputError))
---import Data.IORef (IORef, newIORef, readIORef, atomicModifyIORef, modifyIORef)
---import qualified GHC.Err as Err
---
---initTestContext :: [String] -> IO (Context, IO [String])
---initTestContext input = do
---    inputsRef <- newIORef input
---    outputsRef <- newIORef []
---    let getOutput :: IO [String]
---        getOutput = readIORef outputsRef
---
---    let getTestLine :: IO String
---        getTestLine = atomicModifyIORef inputsRef (\case
---            i : is -> (is,i) -- the i becomes the return value
---            [] -> Err.error "fake inputs exhausted")
---    let putTestLine :: String -> IO ()
---        putTestLine str = atomicModifyIORef outputsRef (\inputs -> (inputs ++ [str], ()))
---
---    pure (empty {getNextLine = getTestLine, putLine = putTestLine }, getOutput)
---
---unit_executeWrite :: IO ()
---unit_executeWrite = do
---    let writeConst = Write (Const 1)
---    let writeVar = Write (VariableName "var")
---
---    (testContext, getOutput) <- initTestContext []
---    exitContext <- execute testContext [writeConst]
---    output      <- getOutput
---    assertEqual "write const" testContext exitContext
---    assertEqual "write const" ["1"] output
---
---    (testContext, getOutput) <- initTestContext []
---    exitContext <- execute testContext [writeVar]
---    output      <- getOutput
---    context     <- setError testContext (VarNameError "var")
---    assertEqual "write var fail" context exitContext
---    assertEqual "write var fail" [] output
---
---    (testContext0, getOutput) <- initTestContext ["123"]
---    testContext <- setVar testContext0 "var" 123
---    exitContext <- execute testContext [writeVar]
---    output      <- getOutput
---    assertEqual "write var success" testContext exitContext
---    assertEqual "write var success" ["123"] output
---
---unit_executeUnsupported :: IO ()
---unit_executeUnsupported = do
---    let skip = Skip
---
---    exitContext <- execute empty [skip]
---    context     <- setError empty UnsupportedError
---    assertEqual "unsupported" context exitContext
---
---unit_executeRead :: IO ()
---unit_executeRead = do
---    let readVar = Read "var"
---
---    (testContext, getOutput) <- initTestContext ["123"]
---    exitContext <- execute testContext [readVar]
---    output      <- getOutput
---    context     <- setVar testContext "var" 123
---    assertEqual "read success" context exitContext
---    assertEqual "read success" [] output
---
---    (testContext, getOutput) <- initTestContext ["fds"]
---    exitContext <- execute testContext [readVar]
---    output      <- getOutput
---    context     <- setError testContext (InvalidInputError "fds")
---    assertEqual "read failure" context exitContext
---    assertEqual "read failure" [] output
+
+import Context (Context (..), InputSource (..), newContext)
+import Control.Monad.Trans.State
+import Error (RuntimeError (..))
+import Execute (run)
+import Test.HUnit
+
+--          code        input       input       output
+testRun :: [String] -> [String] -> Either RuntimeError ([String], [String])
+testRun instructions inpLines =
+  let inputSource = InputSource {fileName = "testInput", inputLines = inpLines}
+   in let e = runStateT (run "testCode" instructions) $ newContext inputSource
+       in case e of
+            Left e' -> Left e'
+            Right (_, ctx) -> Right ((inputLines . input) ctx, output ctx)
+
+throws :: [String] -> [String] -> RuntimeError -> Bool
+throws instructions inp e = case testRun instructions inp of
+  Left e' -> e' == e
+  Right _ -> False
+
+parseFailed :: [String] -> [String] -> Bool
+parseFailed instructions inp = case testRun instructions inp of
+  Left (ParserError _) -> True
+  _ -> False
+
+successAndEquals :: [String] -> [String] -> [String] -> Bool
+successAndEquals instructions inp out = case testRun instructions inp of
+  Left _ -> False
+  Right (a, b) -> null a && b == out
+
+unit_simple :: IO ()
+unit_simple = do
+  assertBool "empty statement" $ successAndEquals [] [] []
+  assertBool "just skip" $ successAndEquals ["skip"] [] []
+  assertBool "invalid text" $ parseFailed ["sadsadsadsa"] []
+
+unit_write :: IO ()
+unit_write = do
+  assertBool "write const" $ successAndEquals ["write 1"] [] ["1"]
+  assertBool "write easy expr" $ successAndEquals ["write 1+2"] [] ["3"]
+  assertBool "write var" $ throws ["write aboba"] [] $ VarNotFound "aboba"
+
+unit_lets :: IO ()
+unit_lets = do
+  assertBool "let const" $ successAndEquals ["x := 1", "write x"] [] ["1"]
+  assertBool "let expr" $ successAndEquals ["x := 1 + 2 * 3", "write x"] [] ["7"]
+  assertBool "self assign" $ successAndEquals ["x := 1", "write x", "x := x", "write x"] [] ["1", "1"]
+  assertBool "self arithmetics" $ successAndEquals ["x := 1", "x := x + 1", "write x"] [] ["2"]
+  assertBool "multiplie variables" $
+    successAndEquals
+      ["x := 1; y := 2", "z := x + y", "write x", "write y", "write z"]
+      []
+      ["1", "2", "3"]
+
+unit_read :: IO ()
+unit_read = do
+  assertBool "simple read" $ successAndEquals ["read x", "write x"] ["1"] ["1"]
+  assertBool "two reads" $ successAndEquals ["read x", "read y", "write x", "write y"] ["1", "2"] ["1", "2"]
+  assertBool "unexcepted EOF" $ throws ["read x"] [] UnexpectedEOF
+  assertBool "overlapping" $ successAndEquals ["x := 1", "write x", "read x", "write x"] ["239"] ["1", "239"]
+  assertBool "invalid input" $ parseFailed ["read x"] ["aboba"]
+
+unit_while :: IO ()
+unit_while = do
+  assertBool "simple while" $ successAndEquals ["while 0 do write 1"] [] []
+  assertBool "for cycle" $ successAndEquals 
+    ["x := 5", "while x do write x; x := x - 1"] 
+    [] 
+    ["5", "4", "3", "2", "1"]

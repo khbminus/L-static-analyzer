@@ -7,4 +7,4 @@ type ParsecError = ParseErrorBundle String Void
 data RuntimeError = ParserError ParsecError
                   | VarNotFound String
                   | FunctionNotFound String
-                  | UnexpectedEOF
+                  | UnexpectedEOF deriving (Show, Eq)

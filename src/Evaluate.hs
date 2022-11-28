@@ -63,9 +63,11 @@ evaluateOneStatement (Let name value) = do
 evaluateOneStatement Skip = pure ()
 evaluateOneStatement (While expression statements) = do
   value <- evaluateExpression expression
-  if toBool value
+  if not $ toBool value
     then return ()
-    else evaluateStatements statements
+    else do 
+      evaluateStatements statements
+      evaluateOneStatement (While expression statements)
 evaluateOneStatement (If expression trueStatements falseStatements) = do
   value <- evaluateExpression expression
   if toBool value
