@@ -1,12 +1,10 @@
 module Main where
 
 import Options.Applicative
-import CommandLineParser (Action(..), actionParser, getInput, getVarContext, runInterpreter, Input(..))
 import Grammar (parseInput)
-import Context (emptyContext, Context(..))
-import Execute (execute)
-import Control.Monad (when)
-import System.IO
+import Console (runLoop, readEvalWriteLoop)
+import ConsoleParser (Action(..), Input(..), actionParser, getInput, getVarContext)
+import Context (Context(vars), emptyContext)
 
 -- Программа парсит аргументы командной строки при помощи execParser,
 -- а потом запускает функцию runAction (логику приложения)
@@ -22,36 +20,12 @@ main = do
       )
 
 runAction :: Action -> IO ()
-runAction (Action input@(FileInput _) context) = do
+runAction (Action input@(FileInput _) varContext) = do
   i <- getInput input
-  let parsed = parseInput i
-  case parsed of
-    Left err -> print err
-    Right sts -> let varContext = getVarContext context in
-      runInterpreter varContext sts
+  let context = emptyContext { Context.vars = getVarContext varContext}
+  runLoop context (lines i)
 
 -- выход: q
--- TODO: STYLE FIX!!!
-runAction (Action Interactive context) = interpret $ emptyContext { Context.vars = getVarContext context }
-  where
-    interpret :: Context -> IO ()
-    interpret cxt = do
-      line <- prompt "L: "
-      when (line /= "q") $
-        let parsed = parseInput line in
-        case parsed of
-          Left err -> print err >> interpret cxt
-          Right sts -> do
-            newcxt <- execute cxt sts
-            case newcxt of
-              Context { Context.error = Just err } -> do
-                print err 
-                interpret $ newcxt { Context.error = Nothing}
-              _ -> do
-                interpret newcxt
-
-prompt :: String -> IO String
-prompt text = do
-  putStr text
-  hFlush stdout
-  getLine
+runAction (Action Interactive varContext) =
+  let context = emptyContext { Context.vars = getVarContext varContext} in
+  readEvalWriteLoop context

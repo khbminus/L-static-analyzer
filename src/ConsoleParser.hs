@@ -1,4 +1,4 @@
-module CommandLineParser where
+module ConsoleParser where
 
 import qualified Options.Applicative as Optparse
 import qualified Text.Megaparsec as Megaparsec
@@ -35,13 +35,14 @@ inputParser = FileInput <$> Optparse.strOption
 varsParser :: Optparse.Parser [String]
 varsParser = Optparse.many $ Optparse.argument Optparse.str $ Optparse.metavar "VARS..."
 
-varArg :: LParser.Parser (String, Int)
-varArg = (,) 
-    <$> (LParser.lexeme LParser.name <?> "Variable name") <*> (LParser.symbol "=" *> LParser.lexeme LParser.decimal <?> "const value" ) <?> "Variable argument"
+varArgParser :: LParser.Parser (String, Int)
+varArgParser = (,) 
+    <$> (LParser.lexeme LParser.name <?> "Variable name") 
+    <*> (LParser.symbol "=" *> LParser.lexeme LParser.decimal <?> "const value" ) <?> "Variable argument"
 
 getVarContext :: [String] -> VarContext
 getVarContext (x:xs) = 
-  let res = Megaparsec.parse varArg "" x in
+  let res = Megaparsec.parse varArgParser "" x in
   case res of
     Left err -> Prelude.error $ show err 
     Right (var, val) -> setVarContext (getVarContext xs) var val

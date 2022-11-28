@@ -41,6 +41,7 @@ library:
   dependencies:
   - containers
   - optparse-applicative
+  - transformers
 
 executables:
   L-static-analyzer-exe:

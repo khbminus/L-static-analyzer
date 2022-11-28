@@ -6,6 +6,7 @@ import Error (RuntimeError(UnsupportedError, InvalidInputError))
 import Evaluate ( evaluate )
 import Control.Monad (foldM)
 import Text.Read (readMaybe)
+import Control.Applicative (Alternative(empty))
 
 
 executeStatement :: Context -> Statement -> IO Context
@@ -32,6 +33,4 @@ execute = foldM executeStatement
 run :: Context -> [Statement] -> IO ()
 run cxt sts = do
     res <- execute cxt sts
-    case Context.error res of
-        Nothing -> putStrLn "Success!"
-        Just err -> putStrLn $ "Error: " ++ show err
+    maybe empty print (Context.error res)

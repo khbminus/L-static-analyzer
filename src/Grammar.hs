@@ -147,4 +147,4 @@ statement =
         ]
 
 parseInput :: String -> Either (ParseErrorBundle String Void) [Statement]
-parseInput input = parse statement "" input
+parseInput = parse statement ""
