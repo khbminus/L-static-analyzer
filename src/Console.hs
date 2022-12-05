@@ -4,9 +4,8 @@ import Context (Context(..))
 import Execute (execute, run)
 import System.IO ( hFlush, stdout )
 import Control.Monad (when)
-
-import Control.Monad.Trans.Class ( MonadTrans(lift) )
-import Control.Monad.Trans.State
+import Control.Monad.State ( MonadTrans(lift) )
+import Control.Monad.Trans.State ( StateT, get, put )
 
 -- TODO: print expression results
 readEvalWriteLoop :: StateT Context IO ()

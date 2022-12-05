@@ -1,10 +1,10 @@
 module Main where
 
-import Options.Applicative
+import Options.Applicative ( (<**>), fullDesc, header, info, progDesc, execParser, helper )
 import Console (runLoop, readEvalWriteLoop)
-import ConsoleParser (Action(..), Input(..), actionParser, getInput, getVarContext)
+import ConsoleParser (Action(..), Input(..), actionParser, getVarContext)
 import Context (Context(vars), newContext)
-import Control.Monad.State
+import Control.Monad.State ( evalStateT )
 
 -- Программа парсит аргументы командной строки при помощи execParser,
 -- а потом запускает функцию runAction (логику приложения)
@@ -20,8 +20,8 @@ main = do
       )
 
 runAction :: Action -> IO ()
-runAction (Action input@(FileInput _) varContext) = do
-  i <- getInput input
+runAction (Action (FileInput path) varContext) = do
+  i <- readFile path
   let context = newContext { Context.vars = getVarContext varContext}
   evalStateT (runLoop $ lines i) context
 

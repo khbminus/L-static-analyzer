@@ -45,8 +45,3 @@ getVarContext (x:xs) =
     Left err -> Prelude.error $ show err 
     Right (var, val) -> setVarContext var val (getVarContext xs)
 getVarContext [] = emptyVarContext
-
-getInput :: Input -> IO String
-getInput (FileInput path) = readFile path
-getInput Interactive = getLine
-
