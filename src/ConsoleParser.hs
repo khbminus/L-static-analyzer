@@ -4,9 +4,7 @@ import qualified Options.Applicative as Optparse
 import qualified Text.Megaparsec as Megaparsec
 import qualified Grammar as LParser
 import Text.Megaparsec ( (<?>), (<|>) )
-import Context (VarContext, Context(..), setVarContext, emptyContext, emptyVarContext)
-import Statement
-import Execute (run)
+import Context (VarContext, setVarContext, emptyVarContext)
 
 -- Тип данных, агрегирующий все аргументы командной строки, возвращается actionParser-ом
 data Action = Action
@@ -38,19 +36,17 @@ varsParser = Optparse.many $ Optparse.argument Optparse.str $ Optparse.metavar "
 varArgParser :: LParser.Parser (String, Int)
 varArgParser = (,) 
     <$> (LParser.lexeme LParser.name <?> "Variable name") 
-    <*> (LParser.symbol "=" *> LParser.lexeme LParser.decimal <?> "const value" ) <?> "Variable argument"
+    <*> (LParser.symbol "=" *> LParser.lexeme LParser.number <?> "const value" ) <?> "Variable argument"
 
 getVarContext :: [String] -> VarContext
 getVarContext (x:xs) = 
   let res = Megaparsec.parse varArgParser "" x in
   case res of
     Left err -> Prelude.error $ show err 
-    Right (var, val) -> setVarContext (getVarContext xs) var val
+    Right (var, val) -> setVarContext var val (getVarContext xs)
 getVarContext [] = emptyVarContext
 
 getInput :: Input -> IO String
 getInput (FileInput path) = readFile path
 getInput Interactive = getLine
 
-runInterpreter :: VarContext -> [Statement] -> IO ()
-runInterpreter varcxt = run $ emptyContext { Context.vars = varcxt }

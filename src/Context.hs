@@ -1,60 +1,53 @@
-{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE InstanceSigs #-}
-module Context where
-import Error ( RuntimeError(VarNameError) )
+{-# LANGUAGE PatternSynonyms #-}
+
+module Context(Context(..), InputSource(..), newContext, getVar, setVar, setVarContext, VarContext, emptyVarContext, pattern ErrorContext) where
+
 import qualified Data.Map as Map
+import Error (RuntimeError)
 
 data FunContext = FunContext deriving (Show, Eq)
 
-data VarContext = VarContext { context :: Map.Map String Int } deriving (Show, Eq)
+newtype VarContext = VarContext {context :: Map.Map String Int} deriving (Show, Eq)
+
+data InputSource = InputSource {fileName :: String, inputLines :: [String]} deriving (Show)
 
 emptyVarContext :: VarContext
-emptyVarContext = VarContext { context = Map.empty }
+emptyVarContext = VarContext {context = Map.empty}
 
-setVarContext :: VarContext -> String -> Int -> VarContext
-setVarContext cxt var val = VarContext $ Map.insert var val $ context cxt
+setVarContext :: String -> Int -> VarContext -> VarContext
+setVarContext name val ctx =
+  let mp = context ctx in 
+  VarContext $ Map.insert name val mp
 
-data Context = Context 
-    { funs :: FunContext
-    , vars :: VarContext
-    , error :: Maybe RuntimeError 
-    , getNextLine :: IO String
-    , putLine :: String -> IO ()
-    }
-
-instance Show Context where
-    show :: Context -> String
-    show cxt = "Functions: " ++ show (funs cxt) ++ "\nVariables: " ++ show (vars cxt) ++ "\nError: " ++ show (Context.error cxt)
-
-instance Eq Context where
-    (==) :: Context -> Context -> Bool
-    (==) c1 c2 = funs c1 == funs c2 && vars c1 == vars c2 && Context.error c1 == Context.error c2
-
-emptyContext :: Context
-emptyContext = Context 
-    { funs = FunContext
-    , vars = emptyVarContext
-    , Context.error = Nothing
-    , getNextLine = getLine
-    , putLine = putStrLn
-    }
+data Context = Context
+  { funs :: FunContext,
+    vars :: VarContext,
+    error :: Maybe RuntimeError
+  }
+  deriving (Show)
 
 pattern ErrorContext :: Context
 pattern ErrorContext <- Context { Context.error = (Just _) }
 
-getVar :: Context -> String -> (IO Context, Maybe Int)
-getVar cxt var = 
-    let mp = context . vars $ cxt in
-    let x = Map.lookup var mp in
-    (case x of
-        Nothing -> setError cxt $ VarNameError var
-        Just _ -> pure cxt
-    , x)
+instance Eq Context where
+  (==) :: Context -> Context -> Bool
+  (==) c1 c2 = funs c1 == funs c2 && vars c1 == vars c2
 
-setVar :: Context -> String -> Int -> Context
-setVar cxt name val = 
-    let mp = context . vars $ cxt in
-    cxt { vars = VarContext $ Map.insert name val mp }
+newContext :: Context
+newContext =
+  Context
+    { funs = FunContext,
+      vars = emptyVarContext,
+      Context.error = Nothing
+    }
 
-setError :: Context -> RuntimeError -> IO Context
-setError cxt err = pure $ cxt { Context.error = Just err }
+getVar :: Context -> String -> Maybe Int
+getVar cxt var =
+  let mp = context . vars $ cxt
+   in Map.lookup var mp
+
+setVar :: String -> Int -> Context -> Context
+setVar name val ctx =
+  let mp = context . vars $ ctx
+   in ctx {vars = VarContext $ Map.insert name val mp}

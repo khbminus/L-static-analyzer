@@ -1,7 +1,7 @@
-module Test.Console where
+module Test.ConsoleParser where
 
 import Grammar (Parser)
-import CommandLineParser (varArg)
+import ConsoleParser (varArgParser)
 import Test.HUnit
 import Text.Megaparsec
 
@@ -15,9 +15,10 @@ parseFailed parser line = case parse (parser <* eof) "" line of
   Left _ -> True
   Right _ -> False
 
-unit_varParser = do
-  let success = parseSuccessful varArg
-  let fail = parseFailed varArg
+unit_varArgParser :: IO ()
+unit_varArgParser = do
+  let success = parseSuccessful varArgParser
+  let fail = parseFailed varArgParser
 
   assertBool "1" $ success "x=10" ("x", 10)
   assertBool "3" $ success "x=0" ("x", 0)

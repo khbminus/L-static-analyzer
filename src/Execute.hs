@@ -1,36 +1,26 @@
-{-# LANGUAGE PatternSynonyms #-}
-module Execute where
-import Statement (Statement(Write, Read))
-import Context ( Context(error, putLine, getNextLine), pattern ErrorContext, setVar, setError )
-import Error (RuntimeError(UnsupportedError, InvalidInputError))
-import Evaluate ( evaluate )
-import Control.Monad (foldM)
-import Text.Read (readMaybe)
-import Control.Applicative (Alternative(empty))
+module Execute (run, execute) where
 
+import Context (Context (..))
+import Control.Monad.State
+import Error (RuntimeError (..))
+import Evaluate (evaluateStatements)
+import Grammar (statement)
+import Text.Megaparsec (eof, parse)
+import Data.Maybe (isNothing)
+import Text.Megaparsec.Error (ParseErrorBundle)
+import Data.Void
+import Statement (Statement)
 
-executeStatement :: Context -> Statement -> IO Context
-executeStatement c@ErrorContext _ = pure c
+parseInput :: String -> Either (ParseErrorBundle String Void) [Statement]
+parseInput = parse (statement <* eof) ""
 
-executeStatement cxt (Write expr) =
-    let (cxt', x) = evaluate cxt expr in
-    case x of
-        Nothing -> cxt'
-        Just res -> putLine cxt (show res) >> cxt'
+run :: [String] -> StateT Context IO ()
+run = foldr ((>>) . execute) (return ())
 
-executeStatement cxt (Read name) = do
-    line <- getNextLine cxt
-    let val = readMaybe line :: Maybe Int
-    case val of
-        Nothing -> setError cxt $ InvalidInputError line
-        Just x -> pure $ setVar cxt name x
-
-executeStatement cxt _ = setError cxt UnsupportedError -- TODO
-
-execute :: Context -> [Statement] -> IO Context
-execute = foldM executeStatement
-
-run :: Context -> [Statement] -> IO ()
-run cxt sts = do
-    res <- execute cxt sts
-    maybe empty print (Context.error res)
+execute :: String -> StateT Context IO ()
+execute str = do
+  context <- get
+  guard ( isNothing (Context.error context) )
+  case parseInput str of
+    Left err -> put $ context { Context.error = Just $ ParserError err }
+    Right statements -> evaluateStatements statements

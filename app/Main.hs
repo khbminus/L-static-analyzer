@@ -1,10 +1,10 @@
 module Main where
 
 import Options.Applicative
-import Grammar (parseInput)
 import Console (runLoop, readEvalWriteLoop)
 import ConsoleParser (Action(..), Input(..), actionParser, getInput, getVarContext)
-import Context (Context(vars), emptyContext)
+import Context (Context(vars), newContext)
+import Control.Monad.State
 
 -- Программа парсит аргументы командной строки при помощи execParser,
 -- а потом запускает функцию runAction (логику приложения)
@@ -22,10 +22,10 @@ main = do
 runAction :: Action -> IO ()
 runAction (Action input@(FileInput _) varContext) = do
   i <- getInput input
-  let context = emptyContext { Context.vars = getVarContext varContext}
-  runLoop context (lines i)
+  let context = newContext { Context.vars = getVarContext varContext}
+  evalStateT (runLoop $ lines i) context
 
 -- выход: q
 runAction (Action Interactive varContext) =
-  let context = emptyContext { Context.vars = getVarContext varContext} in
-  readEvalWriteLoop context
+  let context = newContext { Context.vars = getVarContext varContext} in
+  evalStateT readEvalWriteLoop context
