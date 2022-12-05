@@ -33,5 +33,7 @@ data Statement
   | Skip
   deriving (Show, Eq)
 
+data Function = Function String [Statement] (Maybe Expression)
+
 reservedKeywords :: [String]
 reservedKeywords = ["if", "then", "else", "while", "do", "read", "write"]
