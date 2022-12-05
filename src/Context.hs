@@ -1,7 +1,7 @@
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE PatternSynonyms #-}
 
-module Context(Context(..), InputSource(..), newContext, getVar, setVar, setVarContext, VarContext, emptyVarContext, pattern ErrorContext) where
+module Context where
 
 import qualified Data.Map as Map
 import Error (RuntimeError)
