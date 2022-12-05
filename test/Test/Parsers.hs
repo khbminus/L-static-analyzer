@@ -94,22 +94,21 @@ unit_let = do
 
   assertBool "assign statement" $ fail "x := while 1 do 2"
 
--- TODO: uncomment this (see Grammar.hs for details)
---  assertBool "assign function call" $
---    success
---      "loooooong := function first second third 1 (2 + 3)"
---      ( Let
---          "loooooong"
---          ( FunctionCall
---              "function"
---              [ VariableName "first"
---              , VariableName "second"
---              , VariableName "third"
---              , Const 1
---              , Application $ Addition (Const 2) (Const 3)
---              ]
---          )
---      )
+  assertBool "assign function call" $
+    success
+      "loooooong := function(first, second, third, 1, 2 + 3)"
+      [ Let
+          "loooooong"
+          ( FunctionCall
+              "function"
+              [ VariableName "first",
+                VariableName "second",
+                VariableName "third",
+                Const 1,
+                Application $ Addition (Const 2) (Const 3)
+              ]
+          )
+      ]
 
 unit_while :: IO ()
 unit_while = do
@@ -127,7 +126,7 @@ unit_while = do
 
   assertBool "function call" $
     success
-      "while f 1 do x := x"
+      "while f(1) do x := x"
       [ While
           (FunctionCall "f" [Const 1])
           [Let "x" (VariableName "x")]
@@ -145,7 +144,7 @@ unit_if = do
 
   assertBool "simple if" $
     success
-      "if 1 then a 1 else a 2"
+      "if 1 then a(1) else a(2)"
       [ If
           (Const 1)
           [FunctionCallStatement "a" [Const 1]]
@@ -159,7 +158,7 @@ unit_statement = do
   let success = parseSuccessful statement
   let fail = parseFailed statement
 
-  assertBool "function call" $ success "f 1 2 3" [FunctionCallStatement "f" [Const 1, Const 2, Const 3]]
+  assertBool "function call" $ success "f(1, 2, 3)" [FunctionCallStatement "f" [Const 1, Const 2, Const 3]]
   assertBool "read variable" $ success "read x" [Read "x"]
   assertBool "read expression fails" $ fail "read x + 2"
   assertBool "write variable" $ success "write x" [Write (VariableName "x")]

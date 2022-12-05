@@ -19,6 +19,9 @@ lexeme = L.lexeme sc
 symbol :: String -> Parser String
 symbol = L.symbol sc
 
+number :: Parser Int
+number = lexeme L.decimal <?> "number"
+
 constValue :: Parser Expression
 constValue = Const <$> lexeme L.decimal <?> "const value"
 
@@ -35,10 +38,10 @@ varName = VariableName <$> name
 
 funCall :: Parser Expression
 funCall = do
-  FunctionCall <$> (lexeme name <?> "Function name") <*> (arguments <?> "arguments")
+  FunctionCall <$> (lexeme name <?> "Function name") <*> (lexeme . parens) (arguments <?> "arguments")
   where
     arguments :: Parser [Expression]
-    arguments = (:) <$> expression <*> many expression
+    arguments = expression `sepBy` lexeme (symbol ",")
 
 parens :: Parser a -> Parser a
 parens = between (symbol "(") (symbol ")")
@@ -116,12 +119,12 @@ funCallStatement :: Parser [Statement]
 funCallStatement =
   singleton
     <$> ( FunctionCallStatement
-            <$> (name <?> "function name")
-            <*> (arguments <?> "arguments")
+            <$> (lexeme name <?> "Function name")
+            <*> (lexeme . parens) (arguments <?> "arguments")
         )
   where
     arguments :: Parser [Expression]
-    arguments = (:) <$> expression <*> many expression
+    arguments = expression `sepBy` lexeme (symbol ",")
 
 skip :: Parser [Statement]
 skip = [Skip] <$ symbol "skip"
