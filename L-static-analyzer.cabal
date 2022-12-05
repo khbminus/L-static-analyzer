@@ -68,6 +68,7 @@ test-suite L-static-analyzer-test
   main-is: Test.hs
   other-modules:
       Test.Console
+      Test.ConsoleParser
       Test.Parsers
       Paths_L_static_analyzer
   hs-source-dirs:
