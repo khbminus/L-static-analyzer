@@ -26,6 +26,7 @@ data Expression
 data Statement
   = Let String Expression
   | FunctionCallStatement String [Expression]
+  | FunctionDeclaration String Function
   | Write Expression
   | Read String
   | While Expression [Statement]
@@ -33,7 +34,7 @@ data Statement
   | Skip
   deriving (Show, Eq)
 
-data Function = Function String [Statement] (Maybe Expression)
+data Function = Function [Statement] (Maybe Expression) deriving (Show, Eq)
 
 reservedKeywords :: [String]
 reservedKeywords = ["if", "then", "else", "while", "do", "read", "write"]

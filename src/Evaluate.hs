@@ -1,11 +1,11 @@
 module Evaluate (evaluateStatements, evaluateOneStatement, evaluateExpression) where
 
-import Context (Context (..), InputSource (..), getVar, setVar)
+import Context (Context (..), InputSource (..), getFun, getVar, loadFunStack, setVar, unloadFunStack, setFun)
 import Control.Composition
 import Control.Monad.State
 import Error (RuntimeError (..))
 import Grammar (number)
-import Statement (Expression (..), Operations (..), Statement (..))
+import Statement (Expression (..), Function (..), Operations (..), Statement (..))
 import Text.Megaparsec (eof, runParser)
 import Text.Read (readMaybe)
 
@@ -13,15 +13,33 @@ evaluateExpression :: Expression -> StateT Context IO (Maybe Int)
 evaluateExpression (Const x) = return $ Just x
 evaluateExpression (VariableName name) = do
   ctx <- get
-  case getVar ctx name of
+  case getVar name ctx of
     x@(Just _) -> return x
     Nothing -> do
-      put (ctx { Context.error = Just $ VarNotFound name })
+      put (ctx {Context.error = Just $ VarNotFound name})
       return Nothing
 evaluateExpression (FunctionCall name _) = do
   ctx <- get
-  put $ ctx { Context.error = Just $ FunctionNotFound name }
-  return Nothing
+  case getFun name ctx of
+    Nothing ->
+      do
+        put $ ctx {Context.error = Just $ FunctionNotFound name}
+        return Nothing
+    Just f ->
+      do
+        modify (loadFunStack f)
+        let Function statements returnExpr = f
+        evaluateStatements statements
+        returnValue <- case returnExpr of
+          Nothing ->
+            do
+              put $ ctx {Context.error = Just $ CallOfVoidFunctionInExpression name}
+              return Nothing
+          Just expr ->
+            do
+              evaluateExpression expr
+        modify unloadFunStack
+        return returnValue
 evaluateExpression (Application op') = do
   let (x, y, op) = unpack op'
   x' <- evaluateExpression x
@@ -74,14 +92,16 @@ evaluateOneStatement Skip = pure ()
 evaluateOneStatement (While expression statements) = do
   value <- evaluateExpression expression
   case value of
-    Just val | toBool val -> pure ()
-             | otherwise -> evaluateStatements statements
+    Just val
+      | toBool val -> pure ()
+      | otherwise -> evaluateStatements statements
     Nothing -> pure ()
 evaluateOneStatement (If expression trueStatements falseStatements) = do
   value <- evaluateExpression expression
   case value of
-    Just val | toBool val -> evaluateStatements trueStatements
-             | otherwise -> evaluateStatements falseStatements
+    Just val
+      | toBool val -> evaluateStatements trueStatements
+      | otherwise -> evaluateStatements falseStatements
     Nothing -> pure ()
 evaluateOneStatement (FunctionCallStatement _ _) = pure ()
 evaluateOneStatement (Write expr) = do
@@ -89,13 +109,14 @@ evaluateOneStatement (Write expr) = do
   case value of
     Just val -> lift $ print val
     Nothing -> pure ()
-  
 evaluateOneStatement (Read var) = do
   ctx <- get
   inp <- lift getLine
   case readMaybe inp :: Maybe Int of
-    Nothing -> put $ ctx { Context.error = Nothing }
+    Nothing -> put $ ctx {Context.error = Nothing}
     Just val -> put $ setVar var val ctx
+evaluateOneStatement (FunctionDeclaration name f) = do
+  modify $ setFun name f
 
 evaluateStatements :: [Statement] -> StateT Context IO ()
 evaluateStatements [] = pure ()
