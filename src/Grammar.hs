@@ -131,10 +131,11 @@ functionDeclaration :: Parser [Statement]
 functionDeclaration =
   buildDeclaration
     <$> (symbol "def" *> name)
+    <*> parens (name `sepBy` symbol ",")
     <*> (symbol "{" *> statement)
     <*> (symbol "}" *> optional (symbol "return" *> expression))
   where
-    buildDeclaration a b c = [FunctionDeclaration a (Function b c)]
+    buildDeclaration a b c d = [FunctionDeclaration a (Function b c d)]
 
 skip :: Parser [Statement]
 skip = [Skip] <$ symbol "skip"

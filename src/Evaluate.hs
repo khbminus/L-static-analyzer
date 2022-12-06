@@ -18,7 +18,7 @@ evaluateExpression (VariableName name) = do
     Nothing -> do
       put (ctx {Context.error = Just $ VarNotFound name})
       return Nothing
-evaluateExpression (FunctionCall name _) = do
+evaluateExpression (FunctionCall name argumentValues) = do
   ctx <- get
   case getFun name ctx of
     Nothing ->
@@ -27,19 +27,37 @@ evaluateExpression (FunctionCall name _) = do
         return Nothing
     Just f ->
       do
-        modify (loadFunStack f)
-        let Function statements returnExpr = f
-        evaluateStatements statements
-        returnValue <- case returnExpr of
-          Nothing ->
-            do
-              put $ ctx {Context.error = Just $ CallOfVoidFunctionInExpression name}
-              return Nothing
-          Just expr ->
-            do
-              evaluateExpression expr
-        modify unloadFunStack
-        return returnValue
+        argumentValues' <- evaluateList argumentValues
+        case argumentValues' of
+          Nothing -> return Nothing
+          Just args -> do
+            modify (loadFunStack f args) -- FIXME: check length
+            let Function _ statements returnExpr = f
+            evaluateStatements statements
+            returnValue <- case returnExpr of
+              Nothing ->
+                do
+                  put $ ctx {Context.error = Just $ CallOfVoidFunctionInExpression name}
+                  return Nothing
+              Just expr ->
+                do
+                  evaluateExpression expr
+            modify unloadFunStack
+            return returnValue
+  where
+    evaluateList :: [Expression] -> StateT Context IO (Maybe [Int])
+    evaluateList [] = return $ Just []
+    evaluateList (x : xs) = do
+      x' <- evaluateExpression x
+      case x' of
+        Just y -> do
+          xs' <- evaluateList xs
+          case xs' of
+            Just ys -> return $ Just (y : ys)
+            Nothing -> return Nothing
+        Nothing -> return Nothing
+
+
 evaluateExpression (Application op') = do
   let (x, y, op) = unpack op'
   x' <- evaluateExpression x

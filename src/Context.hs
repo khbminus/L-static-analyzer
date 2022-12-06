@@ -63,8 +63,12 @@ setFun name f ctx =
    in let fc = FunContext $ Map.insert name f mp
        in ctx {funs = fc : (tail . funs) ctx}
 
-loadFunStack :: Function -> Context -> Context
-loadFunStack Function {} ctx = ctx {funs = emptyFunContext : funs ctx, vars = emptyVarContext : vars ctx}
+loadFunStack :: Function -> [Int] -> Context -> Context
+loadFunStack (Function args _ _) values ctx = ctx {funs = emptyFunContext : funs ctx, vars = insertAll (zip args values) emptyVarContext : vars ctx}
+  where
+    insertAll :: [(String, Int)] -> VarContext -> VarContext
+    insertAll [] x = x
+    insertAll ((name, value) : xs) (VarContext mp) = insertAll xs VarContext {varContext = Map.insert name value mp}
 
 unloadFunStack :: Context -> Context
 unloadFunStack ctx = ctx {funs = (tail . funs) ctx, vars = (tail . vars) ctx}

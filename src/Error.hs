@@ -9,4 +9,5 @@ data RuntimeError = ParserError ParsecError
                   | FunctionNotFound String
                   | UnexpectedEOF
                   | CallOfVoidFunctionInExpression String
+                  | InvalidNumberOfArguments String Int Int
                   deriving (Show, Eq)
