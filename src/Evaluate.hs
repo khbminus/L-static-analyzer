@@ -1,6 +1,8 @@
+{-# LANGUAGE BangPatterns #-}
+
 module Evaluate (evaluateStatements, evaluateOneStatement, evaluateExpression) where
 
-import Context (Context (..), InputSource (..), getFun, getVar, loadFunStack, setVar, unloadFunStack, setFun)
+import Context (Context (..), InputSource (..), getFun, getVar, loadFunStack, setFun, setVar, unloadFunStack)
 import Control.Composition
 import Control.Monad.State
 import Error (RuntimeError (..))
@@ -8,6 +10,18 @@ import Grammar (number)
 import Statement (Expression (..), Function (..), Operations (..), Statement (..))
 import Text.Megaparsec (eof, runParser)
 import Text.Read (readMaybe)
+
+evaluateList :: [Expression] -> StateT Context IO (Maybe [Int])
+evaluateList [] = return $ Just []
+evaluateList (x : xs) = do
+  x' <- evaluateExpression x
+  case x' of
+    Just y -> do
+      xs' <- evaluateList xs
+      case xs' of
+        Just ys -> return $ Just (y : ys)
+        Nothing -> return Nothing
+    Nothing -> return Nothing
 
 evaluateExpression :: Expression -> StateT Context IO (Maybe Int)
 evaluateExpression (Const x) = return $ Just x
@@ -44,20 +58,6 @@ evaluateExpression (FunctionCall name argumentValues) = do
                   evaluateExpression expr
             modify unloadFunStack
             return returnValue
-  where
-    evaluateList :: [Expression] -> StateT Context IO (Maybe [Int])
-    evaluateList [] = return $ Just []
-    evaluateList (x : xs) = do
-      x' <- evaluateExpression x
-      case x' of
-        Just y -> do
-          xs' <- evaluateList xs
-          case xs' of
-            Just ys -> return $ Just (y : ys)
-            Nothing -> return Nothing
-        Nothing -> return Nothing
-
-
 evaluateExpression (Application op') = do
   let (x, y, op) = unpack op'
   x' <- evaluateExpression x
@@ -121,7 +121,32 @@ evaluateOneStatement (If expression trueStatements falseStatements) = do
       | toBool val -> evaluateStatements trueStatements
       | otherwise -> evaluateStatements falseStatements
     Nothing -> pure ()
-evaluateOneStatement (FunctionCallStatement _ _) = pure ()
+evaluateOneStatement (FunctionCallStatement name argumentValues) = do
+  ctx <- get
+  case getFun name ctx of
+    Nothing ->
+      do
+        put $ ctx {Context.error = Just $ FunctionNotFound name}
+        return ()
+    Just f ->
+      do
+        argumentValues' <- evaluateList argumentValues
+        case argumentValues' of
+          Nothing -> return ()
+          Just args -> do
+            modify (loadFunStack f args) -- FIXME: check length
+            let Function _ statements returnExpr = f
+            evaluateStatements statements
+            !returnValue <- case returnExpr of
+              Nothing ->
+                do
+                  put $ ctx {Context.error = Just $ CallOfVoidFunctionInExpression name}
+                  return Nothing
+              Just expr ->
+                do
+                  evaluateExpression expr
+            modify unloadFunStack
+            return ()
 evaluateOneStatement (Write expr) = do
   value <- evaluateExpression expr
   case value of
