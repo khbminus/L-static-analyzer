@@ -1,70 +1,44 @@
 {-# LANGUAGE BangPatterns #-}
 
-module Evaluate (evaluateStatements, evaluateOneStatement, evaluateExpression) where
+module Evaluate (evaluateStatements, evaluateOneStatement, evaluateExpression, evaluateList) where
 
-import Context (Context (..), InputSource (..), getFun, getVar, loadFunStack, setFun, setVar, unloadFunStack)
+import Context (Context (..), getFunT, getVarT, loadFunStack, setFun, setVar, unloadFunStack)
 import Control.Composition
 import Control.Monad.State
-import Error (RuntimeError (..))
-import Grammar (number)
 import Statement (Expression (..), Function (..), Operations (..), Statement (..))
-import Text.Megaparsec (eof, runParser)
 import Text.Read (readMaybe)
+import Control.Monad.Trans.Maybe (MaybeT(runMaybeT))
+import Data.Maybe (isNothing, fromJust)
 
-evaluateList :: [Expression] -> StateT Context IO (Maybe [Int])
-evaluateList [] = return $ Just []
+evaluateList :: [Expression] -> MaybeT (StateT Context IO) [Int]
+evaluateList [] = return []
 evaluateList (x : xs) = do
   x' <- evaluateExpression x
-  case x' of
-    Just y -> do
-      xs' <- evaluateList xs
-      case xs' of
-        Just ys -> return $ Just (y : ys)
-        Nothing -> return Nothing
-    Nothing -> return Nothing
+  xs' <- evaluateList xs
+  return $ x' : xs'
 
-evaluateExpression :: Expression -> StateT Context IO (Maybe Int)
-evaluateExpression (Const x) = return $ Just x
-evaluateExpression (VariableName name) = do
-  ctx <- get
-  case getVar name ctx of
-    x@(Just _) -> return x
-    Nothing -> do
-      put (ctx {Context.error = Just $ VarNotFound name})
-      return Nothing
+
+evaluateExpression :: Expression -> MaybeT (StateT Context IO) Int
+evaluateExpression (Const x) = return x
+evaluateExpression (VariableName name) = getVarT name
+
 evaluateExpression (FunctionCall name argumentValues) = do
-  ctx <- get
-  case getFun name ctx of
-    Nothing ->
-      do
-        put $ ctx {Context.error = Just $ FunctionNotFound name}
-        return Nothing
-    Just f ->
-      do
-        argumentValues' <- evaluateList argumentValues
-        case argumentValues' of
-          Nothing -> return Nothing
-          Just args -> do
-            modify (loadFunStack f args) -- FIXME: check length
-            let Function _ statements returnExpr = f
-            evaluateStatements statements
-            returnValue <- case returnExpr of
-              Nothing ->
-                do
-                  put $ ctx {Context.error = Just $ CallOfVoidFunctionInExpression name}
-                  return Nothing
-              Just expr ->
-                do
-                  evaluateExpression expr
-            modify unloadFunStack
-            return returnValue
+  f <- getFunT name
+  args <- evaluateList argumentValues
+  modify (loadFunStack f args) -- FIXME: check length
+  let Function _ statements returnExpr = f
+  lift $ evaluateStatements statements
+  when (isNothing returnExpr) $ do { modify unloadFunStack; mzero }
+  let expr = fromJust returnExpr
+  returnValue <- evaluateExpression expr
+  modify unloadFunStack
+  return returnValue
+
 evaluateExpression (Application op') = do
   let (x, y, op) = unpack op'
   x' <- evaluateExpression x
   y' <- evaluateExpression y
-  case (x', y') of
-    (Just val_x, Just val_y) -> return $ Just $ op val_x val_y
-    (_, _) -> return Nothing
+  return $ op x' y'
   where
     -- FIXME: fix that crappy design
     unpack :: Operations -> (Expression, Expression, Int -> Int -> Int)
@@ -102,53 +76,29 @@ toBool _ = True
 
 evaluateOneStatement :: Statement -> StateT Context IO ()
 evaluateOneStatement (Let name value) = do
-  value' <- evaluateExpression value
+  value' <- runMaybeT $ evaluateExpression value
   case value' of
     Just val -> modify (setVar name val)
     Nothing -> pure ()
 evaluateOneStatement Skip = pure ()
 evaluateOneStatement (While expression statements) = do
-  value <- evaluateExpression expression
+  value <- runMaybeT $ evaluateExpression expression
   case value of
     Just val
       | toBool val -> pure ()
       | otherwise -> evaluateStatements statements
     Nothing -> pure ()
 evaluateOneStatement (If expression trueStatements falseStatements) = do
-  value <- evaluateExpression expression
+  value <- runMaybeT $ evaluateExpression expression
   case value of
     Just val
       | toBool val -> evaluateStatements trueStatements
       | otherwise -> evaluateStatements falseStatements
     Nothing -> pure ()
-evaluateOneStatement (FunctionCallStatement name argumentValues) = do
-  ctx <- get
-  case getFun name ctx of
-    Nothing ->
-      do
-        put $ ctx {Context.error = Just $ FunctionNotFound name}
-        return ()
-    Just f ->
-      do
-        argumentValues' <- evaluateList argumentValues
-        case argumentValues' of
-          Nothing -> return ()
-          Just args -> do
-            modify (loadFunStack f args) -- FIXME: check length
-            let Function _ statements returnExpr = f
-            evaluateStatements statements
-            !returnValue <- case returnExpr of
-              Nothing ->
-                do
-                  put $ ctx {Context.error = Just $ CallOfVoidFunctionInExpression name}
-                  return Nothing
-              Just expr ->
-                do
-                  evaluateExpression expr
-            modify unloadFunStack
-            return ()
+evaluateOneStatement (FunctionCallStatement name argumentValues) =
+  void (runMaybeT (evaluateExpression $ FunctionCall name argumentValues))
 evaluateOneStatement (Write expr) = do
-  value <- evaluateExpression expr
+  value <- runMaybeT $ evaluateExpression expr
   case value of
     Just val -> lift $ print val
     Nothing -> pure ()
