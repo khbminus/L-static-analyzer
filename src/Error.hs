@@ -1,8 +1,11 @@
 module Error where
-import Statement(Expression)
+import Text.Megaparsec.Error (ParseErrorBundle)
+import Data.Void (Void)
 
-data RuntimeError = EvalError Expression
-                  | VarNameError String
-                  | UnsupportedError
-                  | InvalidInputError String
+type ParsecError = ParseErrorBundle String Void
+
+data RuntimeError = ParserError ParsecError
+                  | VarNotFound String
+                  | FunctionNotFound String
+                  | UnexpectedEOF
                   deriving (Show, Eq)
