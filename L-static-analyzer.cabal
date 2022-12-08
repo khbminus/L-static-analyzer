@@ -72,8 +72,9 @@ test-suite L-static-analyzer-test
   type: exitcode-stdio-1.0
   main-is: Test.hs
   other-modules:
-      Test.Execute
       Test.ConsoleParser
+      Test.Execute
+      Test.Parsers
       Paths_L_static_analyzer
   hs-source-dirs:
       test

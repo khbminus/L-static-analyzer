@@ -145,3 +145,6 @@ statement =
           try funCallStatement,
           letVariable
         ]
+
+statementOrExpression :: Parser (Either [Statement] Expression)
+statementOrExpression = fmap Left (try statement) <|> fmap Right expression
