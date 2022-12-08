@@ -30,7 +30,7 @@ unit_varArgParser = do
   assertBool "6" $ failure "x=vr"
 
 varContextComp :: [String] -> [(String, Int)] -> Bool
-varContextComp inp cxt = getVarContext inp == VarContext { context = Map.fromList cxt }
+varContextComp inp cxt = getVarContext inp == VarContext { varContext = Map.fromList cxt }
 
 unit_getVarContext :: IO ()
 unit_getVarContext = do
