@@ -8,5 +8,7 @@ data RuntimeError = ParserError ParsecError
                   | VarNotFound String
                   | FunctionNotFound String
                   | UnexpectedEOF
+                  | CallOfVoidFunctionInExpression String
+                  | InvalidNumberOfArguments String Int Int
                   | InvalidInput String
                   deriving (Show, Eq)
