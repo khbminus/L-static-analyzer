@@ -1,11 +1,29 @@
 module Console where
 
-import Context (Context(..))
-import Execute (execute, run)
+import Context (Context(..), setErrorT)
+import Execute (run, execute)
 import System.IO ( hFlush, stdout )
-import Control.Monad (when)
+import Control.Monad ( when, guard )
 import Control.Monad.State ( MonadTrans(lift) )
 import Control.Monad.Trans.State ( StateT, get, put )
+import Evaluate (evaluateStatements, evaluateExpression)
+import ConsoleParser (REPLInput(..), parseStatementOrExpression)
+import Error (RuntimeError(ParserError))
+import Control.Monad.Trans.Maybe (runMaybeT)
+import Data.Maybe (isJust, fromJust, isNothing)
+
+
+executeREPL :: String -> StateT Context IO ()
+executeREPL str = do
+    context <- get
+    guard (isNothing (Context.error context))
+    case parseStatementOrExpression str of
+        Left err -> setErrorT $ ParserError err
+        Right (CStatement st) -> evaluateStatements st
+        Right (CExpression ex) -> do
+            res <- runMaybeT $ evaluateExpression ex
+            guard (isJust res)
+            lift $ print (fromJust res)
 
 -- TODO: print expression results
 readEvalWriteLoop :: StateT Context IO ()

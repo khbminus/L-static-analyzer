@@ -22,10 +22,10 @@ main = do
 runAction :: Action -> IO ()
 runAction (Action (FileInput path) varContext) = do
   i <- readFile path
-  let context = newContext { Context.vars = getVarContext varContext}
+  let context = newContext { Context.vars = [getVarContext varContext]}
   evalStateT (runLoop $ lines i) context
 
 -- выход: q
 runAction (Action Interactive varContext) =
-  let context = newContext { Context.vars = getVarContext varContext} in
+  let context = newContext { Context.vars = [getVarContext varContext]} in
   evalStateT readEvalWriteLoop context

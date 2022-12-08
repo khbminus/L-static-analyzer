@@ -23,7 +23,7 @@ emptyFunContext = FunContext {funContext = Map.empty}
 
 setVarContext :: String -> Int -> VarContext -> VarContext
 setVarContext name val ctx =
-  let mp = context ctx in 
+  let mp = varContext ctx in 
   VarContext $ Map.insert name val mp
 
 data Context = Context
