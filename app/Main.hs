@@ -1,15 +1,31 @@
-module Main (main) where
+module Main where
 
-import Statement(Statement(Write, Skip, Read), Expression(Const, VariableName))
-import Execute (run)
-import Context (newContext)
-import Control.Monad.State
+import Options.Applicative ( (<**>), fullDesc, header, info, progDesc, execParser, helper )
+import Console (runLoop, readEvalWriteLoop)
+import ConsoleParser (Action(..), Input(..), actionParser, getVarContext)
+import Context (Context(vars), newContext)
+import Control.Monad.State ( evalStateT )
 
+-- Программа парсит аргументы командной строки при помощи execParser,
+-- а потом запускает функцию runAction (логику приложения)
 main :: IO ()
 main = do
-  let writeConst = Write (Const 1)
-  let writeVar = Write (VariableName "var")
-  let skip = Skip
-  let readVar = Read "var"
+    runAction =<< execParser opts
+  where
+    -- Задает парсер аргументов actionParser, сопровождая его автоматической генерацией странички help.
+    opts = info (actionParser <**> helper)
+      (  fullDesc
+      <> progDesc "This application executes programms in L"
+      <> header "L interpreter"
+      )
 
-  evalStateT (run ["read var", "write var"]) newContext
+runAction :: Action -> IO ()
+runAction (Action (FileInput path) varContext) = do
+  i <- readFile path
+  let context = newContext { Context.vars = [getVarContext varContext]}
+  evalStateT (runLoop $ lines i) context
+
+-- выход: q
+runAction (Action Interactive varContext) =
+  let context = newContext { Context.vars = [getVarContext varContext]} in
+  evalStateT readEvalWriteLoop context

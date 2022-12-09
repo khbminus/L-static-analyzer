@@ -3,10 +3,11 @@ module Grammar where
 import Control.Monad
 import Control.Monad.Combinators.Expr
 import Data.Void
-import Statement (Expression (..), Operations (..), Statement (..), reservedKeywords)
+import Statement (Expression (..), Function (..), Operations (..), Statement (..), reservedKeywords)
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
+import Text.Megaparsec.Debug (dbg)
 
 type Parser = Parsec Void String
 
@@ -126,6 +127,16 @@ funCallStatement =
     arguments :: Parser [Expression]
     arguments = expression `sepBy` lexeme (symbol ",")
 
+functionDeclaration :: Parser [Statement]
+functionDeclaration =
+  buildDeclaration
+    <$> (symbol "def" *> name)
+    <*> parens (name `sepBy` symbol ",")
+    <*> (symbol "{" *> statement)
+    <*> (symbol "}" *> optional (symbol "return" *> expression))
+  where
+    buildDeclaration a b c d = [FunctionDeclaration a (Function b c d)]
+
 skip :: Parser [Statement]
 skip = [Skip] <$ symbol "skip"
 
@@ -134,8 +145,9 @@ split = concat <$> (statement `sepBy1` symbol ";")
 
 statement :: Parser [Statement]
 statement =
-  try while <|> try ifThenElse
-    <|> (concat <$> (terms `sepBy1` symbol ";"))
+  try while
+    <|> try ifThenElse
+    <|> concat <$> (terms `sepBy1` symbol ";")
   where
     terms =
       choice
