@@ -3,10 +3,8 @@ module ConsoleParser where
 import qualified Options.Applicative as Optparse
 import qualified Text.Megaparsec as Megaparsec
 import qualified Grammar as LParser
-import Text.Megaparsec ( (<?>), (<|>), MonadParsec(try, eof) )
+import Text.Megaparsec ( (<?>), (<|>) )
 import Context (VarContext, setVarContext, emptyVarContext)
-import Statement (Expression, Statement)
-import Error (ParsecError)
 
 -- Тип данных, агрегирующий все аргументы командной строки, возвращается actionParser-ом
 data Action = Action
@@ -17,15 +15,6 @@ data Action = Action
 -- Парсер аргументов командной строки
 actionParser :: Optparse.Parser Action
 actionParser = Action <$> (inputParser <|> pure Interactive) <*> varsParser
-
-data REPLInput = CStatement [Statement]
-               | CExpression Expression
-
-statementOrExpression :: LParser.Parser REPLInput
-statementOrExpression = fmap CStatement (try LParser.statement) <|> fmap CExpression LParser.expression
-
-parseStatementOrExpression :: String -> Either ParsecError REPLInput
-parseStatementOrExpression = Megaparsec.parse (statementOrExpression <* eof) ""
 
 -- Тип входных данных
 data Input = FileInput FilePath -- Имя входного файла

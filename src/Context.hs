@@ -63,7 +63,9 @@ getVarT :: String -> MaybeT (StateT Context IO) Int
 getVarT var = do
   cxt <- get
   case getVar var cxt of
-    Nothing -> do { lift $ setErrorT $ VarNotFound var; mzero }
+    Nothing -> do 
+      lift $ setErrorT $ VarNotFound var
+      mzero
     Just v -> return v
 
 setVar :: String -> Int -> Context -> Context
@@ -79,9 +81,10 @@ getFunT :: String -> MaybeT (StateT Context IO) Function
 getFunT fun = do
   ctx <- get
   case getFun fun ctx of
-    Nothing -> do { lift $ setErrorT $ FunctionNotFound fun; mzero }
+    Nothing -> do 
+      lift $ setErrorT $ FunctionNotFound fun
+      mzero
     Just f -> return f
-
 
 setError :: RuntimeError -> Context -> Context
 setError err cxt = cxt { Context.error = Just err }

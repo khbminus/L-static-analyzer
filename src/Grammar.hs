@@ -7,7 +7,7 @@ import Statement (Expression (..), Function (..), Operations (..), Statement (..
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
-import Text.Megaparsec.Debug (dbg)
+import Error (ParsecError)
 
 type Parser = Parsec Void String
 
@@ -157,3 +157,16 @@ statement =
           try funCallStatement,
           letVariable
         ]
+
+parseStatement :: String -> Either (ParseErrorBundle String Void) [Statement]
+parseStatement = parse (statement <* eof) ""
+
+data REPLInput = ConsoleStatement [Statement]
+               | ConsoleExpression Expression
+               deriving (Eq, Show)
+
+statementOrExpression :: Parser REPLInput
+statementOrExpression = fmap ConsoleStatement (try statement) <|> fmap ConsoleExpression expression
+
+parseStatementOrExpression :: String -> Either ParsecError REPLInput
+parseStatementOrExpression = parse (statementOrExpression <* eof) ""
