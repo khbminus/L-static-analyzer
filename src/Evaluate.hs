@@ -2,13 +2,16 @@
 
 module Evaluate (evaluateStatements, evaluateOneStatement, evaluateExpression, evaluateList) where
 
-import Context (Context (..), getFunT, getVarT, loadFunStack, setFun, setVar, unloadFunStack)
+import Context (Context (..), getFunT, getVarT, loadFunStack, setFun, setVar, unloadFunStack, popInput, setErrorT, pushOutput)
 import Control.Composition
 import Control.Monad.State
 import Statement (Expression (..), Function (..), Operations (..), Statement (..))
 import Text.Read (readMaybe)
 import Control.Monad.Trans.Maybe (MaybeT(runMaybeT))
-import Data.Maybe (isNothing, fromJust)
+import Data.Maybe (isNothing, fromJust, isJust)
+import Error (RuntimeError(InvalidInput, UnexpectedEOF))
+import GHC.IO.Handle (hIsOpen)
+import GHC.IO.Handle.FD (stdin)
 
 evaluateList :: [Expression] -> MaybeT (StateT Context IO) [Int]
 evaluateList [] = return []
@@ -100,19 +103,33 @@ evaluateOneStatement (If expression trueStatements falseStatements) = do
       | toBool val -> evaluateStatements trueStatements
       | otherwise -> evaluateStatements falseStatements
     Nothing -> pure ()
+
 evaluateOneStatement (FunctionCallStatement name argumentValues) =
   void (runMaybeT (evaluateExpression $ FunctionCall name argumentValues))
+
 evaluateOneStatement (Write expr) = do
   value <- runMaybeT $ evaluateExpression expr
   case value of
-    Just val -> lift $ print val
+    Just val -> pushOutput $ show val
     Nothing -> pure ()
+
 evaluateOneStatement (Read var) = do
-  ctx <- get
-  inp <- lift getLine
-  case readMaybe inp :: Maybe Int of
-    Nothing -> put $ ctx {Context.error = Nothing}
-    Just val -> put $ setVar var val ctx
+  cxt <- get
+  inp <- runMaybeT popInput
+  str <- if isJust inp then pure inp else runMaybeT maybeGetLine
+  if isNothing str then return ()
+  else let justStr = fromJust str in case readMaybe justStr :: Maybe Int of
+    Nothing -> setErrorT $ InvalidInput justStr
+    Just val -> put $ setVar var val cxt
+
+  where
+    maybeGetLine :: MaybeT (StateT Context IO) String
+    maybeGetLine = do
+      cond <- liftIO $ hIsOpen stdin
+      if cond
+      then liftIO getLine
+      else do { lift $ setErrorT UnexpectedEOF; mzero }
+
 evaluateOneStatement (FunctionDeclaration name f) = do
   modify $ setFun name f
 
