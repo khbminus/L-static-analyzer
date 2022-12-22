@@ -82,7 +82,6 @@ getFunT fun = do
     Nothing -> do { lift $ setErrorT $ FunctionNotFound fun; mzero }
     Just f -> return f
 
-
 setError :: RuntimeError -> Context -> Context
 setError err cxt = cxt { Context.error = Just err }
 

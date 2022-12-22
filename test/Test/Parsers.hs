@@ -4,6 +4,7 @@ import Grammar
 import Statement
 import Test.HUnit
 import Text.Megaparsec
+import Grammar (REPLInput(..))
 
 parseSuccessful :: Eq a => Parser a -> String -> a -> Bool
 parseSuccessful parser line result = case parse (parser <* eof) "" line of
@@ -186,3 +187,16 @@ unit_statement = do
             Let "y" $ VariableName "b"
           ]
       ]
+
+unit_expressionOrStatement = do
+  assertBool "failure"  $ fail "rtwe tre"
+  assertBool "variable" $ success "var" (ConsoleExpression $ VariableName "var")
+
+  where 
+    success inp expected = case parseStatementOrExpression inp of
+      Left _ -> False
+      Right res -> res == expected
+    fail inp = case parseStatementOrExpression inp of
+      Left _ -> True
+      Right _ -> False
+

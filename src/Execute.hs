@@ -1,20 +1,12 @@
-module Execute (run, execute) where
+module Execute (run, execute, executeREPL) where
 
-import Context (Context (..))
+import Context ( Context(..), setErrorT )
 import Control.Monad.State
 import Error (RuntimeError (..))
-import Evaluate (evaluateStatements)
-import Grammar (statement)
-import Text.Megaparsec (eof, parse)
-import Data.Maybe (isNothing)
-import Text.Megaparsec.Error (ParseErrorBundle)
-import Data.Void
-import Statement (Statement)
-import ConsoleParser (REPLInput, statementOrExpression)
-import Context (setErrorT)
-
-parseStatement :: String -> Either (ParseErrorBundle String Void) [Statement]
-parseStatement = parse (statement <* eof) ""
+import Evaluate (evaluateStatements, evaluateExpression)
+import Grammar (parseStatement, REPLInput (..), parseStatementOrExpression)
+import Data.Maybe (isNothing, isJust, fromJust)
+import Control.Monad.Trans.Maybe (MaybeT(..))
 
 run :: [String] -> StateT Context IO ()
 run = foldr ((>>) . execute) (return ())
@@ -26,3 +18,16 @@ execute str = do
   case parseStatement str of
     Left err -> setErrorT $ ParserError err
     Right statements -> evaluateStatements statements
+
+executeREPL :: String -> StateT Context IO ()
+executeREPL str = do
+  context <- get
+  guard ( isNothing (Context.error context) )
+  case parseStatementOrExpression str of
+    Left err -> setErrorT $ ParserError err
+    Right (ConsoleStatement st) -> evaluateStatements st
+    Right (ConsoleExpression ex) -> do
+      res <- runMaybeT $ evaluateExpression ex
+      case res of
+        Nothing -> return ()
+        Just val -> lift $ print val
