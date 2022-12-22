@@ -200,3 +200,24 @@ unit_expressionOrStatement = do
       Left _ -> True
       Right _ -> False
 
+unit_functionsDeclarations :: IO ()
+unit_functionsDeclarations = do
+  let success = parseSuccessful functionDeclaration
+  let fail = parseFailed functionDeclaration
+
+  assertBool "Simple function without return" $ success "def f() {skip}" [FunctionDeclaration "f" (Function [] [Skip] Nothing)]
+  assertBool "Function with empty body" $ fail "def f() {}"
+  assertBool "Wierd spaces" $ success "def        f    (   )   {     skip     }" [FunctionDeclaration "f" (Function [] [Skip] Nothing)]
+  assertBool "Multiline functions" $ success "def f() \n {\n skip \n}" [FunctionDeclaration "f" (Function [] [Skip] Nothing)]
+  assertBool "A lot of statements inside body" $ success "def f() { x := 1; skip  }" [FunctionDeclaration "f" (Function [] [Let "x" (Const 1), Skip] Nothing)]
+  assertBool "Long function name" $ success "def ffffffffffffffffffffffffff() { skip }" [FunctionDeclaration "ffffffffffffffffffffffffff" (Function [] [Skip] Nothing)]
+
+  assertBool "without def" $ fail "f() {skip}"
+  assertBool "without braces" $ fail "def f { skip }"
+
+  assertBool "With return expression" $ success "def f() { skip } return 2" [FunctionDeclaration "f" (Function [] [Skip] (Just $ Const 2))]
+  assertBool "With params" $ success "def f(a, b, c, d, e, f) { skip  }" [FunctionDeclaration "f" (Function ["a", "b", "c", "d", "e", "f"] [Skip] Nothing)]
+  assertBool "Identity function" $ success "def f(x) { skip } return x" [FunctionDeclaration "f" (Function ["x"] [Skip] (Just $ VariableName "x"))]
+  
+  assertBool "Wierd argument name" $ fail "def f(asdas  d  sda  ) {skip}"
+  assertBool "Unclosed comma" $ fail "def f(a,) {skip}"
