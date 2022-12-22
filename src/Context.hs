@@ -6,8 +6,11 @@ module Context where
 import qualified Data.Map as Map
 import Error (RuntimeError (FunctionNotFound, VarNotFound))
 import Statement (Function (..))
-import Control.Monad.Trans.Maybe (MaybeT)
+import Control.Monad.Trans.Maybe (MaybeT (runMaybeT))
 import Control.Monad.State
+import Data.Foldable (Foldable(fold))
+import Data.Maybe (fromJust, isJust)
+import GHC.IO.Handle (hIsOpen)
 
 newtype FunContext = FunContext {funContext :: Map.Map String Function} deriving (Show, Eq)
 
@@ -40,7 +43,8 @@ data Context = Context
     vars :: [VarContext],
     error :: Maybe RuntimeError,
     input :: Buffer,
-    output :: Buffer
+    output :: Buffer,
+    flushEnabled :: Bool
   }
   deriving (Show)
 
@@ -58,7 +62,8 @@ newContext =
       vars = [emptyVarContext],
       Context.error = Nothing,
       input = Buffer [],
-      output = Buffer []
+      output = Buffer [],
+      flushEnabled = True
     }
 
 getHelper :: String -> [Map.Map String a] -> Maybe a
@@ -115,6 +120,14 @@ popInput = do
   put $ cxt { input = buf }
   return ret
 
+popOutput :: MaybeT (StateT Context IO) String
+popOutput = do
+  cxt <- get
+  let (buf, h) = pop $ output cxt
+  ret <- maybe mzero return h
+  put $ cxt { output = buf }
+  return ret
+
 
 setFun :: String -> Function -> Context -> Context
 setFun name f ctx =
@@ -131,3 +144,11 @@ loadFunStack (Function args _ _) values ctx = ctx {funs = emptyFunContext : funs
 
 unloadFunStack :: Context -> Context
 unloadFunStack ctx = ctx {funs = (tail . funs) ctx, vars = (tail . vars) ctx}
+
+flush :: StateT Context IO ()
+flush = do
+
+  out <- runMaybeT popOutput
+  when (isJust out) $ do
+    lift $ putStrLn $ fromJust out
+    flush

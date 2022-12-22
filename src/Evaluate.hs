@@ -2,7 +2,7 @@
 
 module Evaluate (evaluateStatements, evaluateOneStatement, evaluateExpression, evaluateList) where
 
-import Context (Context (..), getFunT, getVarT, loadFunStack, setFun, setVar, unloadFunStack, popInput, setErrorT, pushOutput)
+import Context (Context (..), getFunT, getVarT, loadFunStack, setFun, setVar, unloadFunStack, popInput, setErrorT, pushOutput, flush)
 import Control.Composition
 import Control.Monad.State
 import Statement (Expression (..), Function (..), Operations (..), Statement (..))
@@ -137,4 +137,6 @@ evaluateStatements :: [Statement] -> StateT Context IO ()
 evaluateStatements [] = pure ()
 evaluateStatements (x : xs) = do
   evaluateOneStatement x
+  cxt <- get
+  when (flushEnabled cxt) flush
   evaluateStatements xs
