@@ -6,14 +6,26 @@ module Context where
 import qualified Data.Map as Map
 import Error (RuntimeError (FunctionNotFound, VarNotFound))
 import Statement (Function (..))
-import Control.Monad.Trans.Maybe (MaybeT)
+import Control.Monad.Trans.Maybe (MaybeT (runMaybeT))
 import Control.Monad.State
+import Data.Foldable (Foldable(fold))
+import Data.Maybe (fromJust, isJust)
+import GHC.IO.Handle (hIsOpen)
 
 newtype FunContext = FunContext {funContext :: Map.Map String Function} deriving (Show, Eq)
 
 newtype VarContext = VarContext {varContext :: Map.Map String Int} deriving (Show, Eq)
 
 data InputSource = InputSource {fileName :: String, inputLines :: [String]} deriving (Show)
+
+newtype Buffer = Buffer [String] deriving (Show, Eq)
+
+push :: String -> Buffer -> Buffer
+push str (Buffer buf) = Buffer $ buf ++ [str]
+
+pop :: Buffer -> (Buffer, Maybe String) 
+pop (Buffer (x:xs)) = (Buffer xs, Just x)
+pop (Buffer []) = (Buffer [], Nothing)
 
 emptyVarContext :: VarContext
 emptyVarContext = VarContext {varContext = Map.empty}
@@ -29,7 +41,10 @@ setVarContext name val ctx =
 data Context = Context
   { funs :: [FunContext],
     vars :: [VarContext],
-    error :: Maybe RuntimeError
+    error :: Maybe RuntimeError,
+    input :: Buffer,
+    output :: Buffer,
+    flushEnabled :: Bool
   }
   deriving (Show)
 
@@ -45,7 +60,10 @@ newContext =
   Context
     { funs = [emptyFunContext],
       vars = [emptyVarContext],
-      Context.error = Nothing
+      Context.error = Nothing,
+      input = Buffer [],
+      output = Buffer [],
+      flushEnabled = True
     }
 
 getHelper :: String -> [Map.Map String a] -> Maybe a
@@ -86,9 +104,29 @@ setError :: RuntimeError -> Context -> Context
 setError err cxt = cxt { Context.error = Just err }
 
 setErrorT :: RuntimeError -> StateT Context IO ()
-setErrorT err = do
+setErrorT err = get >>= put . setError err
+
+pushOutput :: String -> StateT Context IO ()
+pushOutput str = do
   cxt <- get
-  put $ setError err cxt
+  put $ cxt { output = push str (output cxt) }
+
+popInput :: MaybeT (StateT Context IO) String
+popInput = do
+  cxt <- get
+  let (buf, h) = pop $ input cxt
+  ret <- maybe mzero return h
+  put $ cxt { input = buf }
+  return ret
+
+popOutput :: MaybeT (StateT Context IO) String
+popOutput = do
+  cxt <- get
+  let (buf, h) = pop $ output cxt
+  ret <- maybe mzero return h
+  put $ cxt { output = buf }
+  return ret
+
 
 setFun :: String -> Function -> Context -> Context
 setFun name f ctx =
@@ -105,3 +143,11 @@ loadFunStack (Function args _ _) values ctx = ctx {funs = emptyFunContext : funs
 
 unloadFunStack :: Context -> Context
 unloadFunStack ctx = ctx {funs = (tail . funs) ctx, vars = (tail . vars) ctx}
+
+flush :: StateT Context IO ()
+flush = do
+
+  out <- runMaybeT popOutput
+  when (isJust out) $ do
+    lift $ putStrLn $ fromJust out
+    flush
