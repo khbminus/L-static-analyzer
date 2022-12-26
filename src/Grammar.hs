@@ -155,6 +155,7 @@ statement =
           readVariable,
           skip,
           try funCallStatement,
+          functionDeclaration,
           letVariable
         ]
 

@@ -92,8 +92,8 @@ evaluateOneStatement (While expression statements) = do
   value <- runMaybeT $ evaluateExpression expression
   case value of
     Just val
-      | toBool val -> pure ()
-      | otherwise -> evaluateStatements statements
+      | toBool val -> evaluateStatements statements
+      | otherwise -> pure ()
     Nothing -> pure ()
 
 evaluateOneStatement (If expression trueStatements falseStatements) = do
