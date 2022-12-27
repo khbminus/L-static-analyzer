@@ -25,6 +25,8 @@ source-repository head
 
 library
   exposed-modules:
+      Analysis.AstToIr
+      Analysis.IR
       Console
       ConsoleParser
       Context
@@ -42,6 +44,7 @@ library
       base >=4.7 && <5
     , composition-prelude
     , containers
+    , hoopl
     , megaparsec
     , mtl
     , optparse-applicative
@@ -61,6 +64,7 @@ executable L-static-analyzer-exe
     , base >=4.7 && <5
     , composition-prelude
     , containers
+    , hoopl
     , megaparsec
     , mtl
     , optparse-applicative
@@ -88,6 +92,7 @@ test-suite L-static-analyzer-test
     , composition-prelude
     , containers
     , hedgehog
+    , hoopl
     , hspec
     , hspec-megaparsec
     , megaparsec

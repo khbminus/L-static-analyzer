@@ -27,6 +27,7 @@ dependencies:
 - megaparsec
 - parser-combinators
 - mtl
+- hoopl
 
 ghc-options:
 - -Wall
@@ -45,6 +46,7 @@ library:
   - containers
   - optparse-applicative
   - transformers
+  - megaparsec
 
 executables:
   L-static-analyzer-exe:
