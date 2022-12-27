@@ -1,4 +1,4 @@
-module Analysis.AstToIr where
+module Analysis.AstToIr(astToIR) where
 
 import qualified Statement as A -- AST
 import qualified Analysis.IR as I

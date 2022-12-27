@@ -37,27 +37,25 @@ evaluateExpression (FunctionCall name argumentValues) = do
   modify unloadFunStack
   return returnValue
 
-evaluateExpression (Application op') = do
-  let (x, y, op) = unpack op'
+evaluateExpression (Application op x y) = do
   x' <- evaluateExpression x
   y' <- evaluateExpression y
-  return $ op x' y'
+  return $ unpack op x' y'
   where
-    -- FIXME: fix that crappy design
-    unpack :: Operations -> (Expression, Expression, Int -> Int -> Int)
-    unpack (Addition lft rgt) = (lft, rgt, (+))
-    unpack (Subtraction lft rgt) = (lft, rgt, (-))
-    unpack (Division lft rgt) = (lft, rgt, div)
-    unpack (Multiplication lft rgt) = (lft, rgt, (*))
-    unpack (Modulo lft rgt) = (lft, rgt, mod)
-    unpack (Equals lft rgt) = (lft, rgt, fromBool .* (==))
-    unpack (NotEquals lft rgt) = (lft, rgt, fromBool .* (/=))
-    unpack (Greater lft rgt) = (lft, rgt, fromBool .* (>))
-    unpack (GreaterOrEquals lft rgt) = (lft, rgt, fromBool .* (>=))
-    unpack (Less lft rgt) = (lft, rgt, fromBool .* (<))
-    unpack (LessOrEquals lft rgt) = (lft, rgt, fromBool .* (<=))
-    unpack (LazyAnd lft rgt) = (lft, rgt, lazyAnd)
-    unpack (LazyOr lft rgt) = (lft, rgt, lazyOr)
+    unpack :: Operations -> (Int -> Int -> Int)
+    unpack Addition = (+)
+    unpack Subtraction = (-)
+    unpack Division = div
+    unpack Multiplication = (*)
+    unpack Modulo = mod
+    unpack Equals = fromBool .* (==)
+    unpack NotEquals = fromBool .* (/=)
+    unpack Greater = fromBool .* (>)
+    unpack GreaterOrEquals = fromBool .* (>=)
+    unpack Less = fromBool .* (<)
+    unpack LessOrEquals = fromBool .* (<=)
+    unpack LazyAnd = lazyAnd
+    unpack LazyOr = lazyOr
 
     lazyAnd :: Int -> Int -> Int
     lazyAnd lft rgt = if lft == 0 then 0 else boolToInt rgt

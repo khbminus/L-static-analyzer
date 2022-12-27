@@ -58,31 +58,28 @@ expressionTerm =
 
 expressionOperationsTable :: [[Operator Parser Expression]]
 expressionOperationsTable =
-  [ [ binary "*" $ compose Multiplication,
-      binary "/" $ compose Division,
-      binary "%" $ compose Modulo
+  [ [ binary "*" $ Application Multiplication,
+      binary "/" $ Application Division,
+      binary "%" $ Application Modulo
     ],
-    [ binary "+" $ compose Addition,
-      binary "-" $ compose Subtraction
+    [ binary "+" $ Application Addition,
+      binary "-" $ Application Subtraction
     ],
-    [ binary "==" $ compose Equals,
-      binary "!=" $ compose NotEquals,
-      binary "<" $ compose Less,
-      binary "<=" $ compose LessOrEquals,
-      binary ">=" $ compose GreaterOrEquals,
-      binary ">" $ compose Greater
+    [ binary "==" $ Application Equals,
+      binary "!=" $ Application NotEquals,
+      binary "<"  $ Application Less,
+      binary "<=" $ Application LessOrEquals,
+      binary ">=" $ Application GreaterOrEquals,
+      binary ">"  $ Application Greater
     ],
-    [ binary "&&" $ compose LazyAnd
+    [ binary "&&" $ Application LazyAnd
     ],
-    [ binary "||" $ compose LazyOr
+    [ binary "||" $ Application LazyOr
     ]
   ]
   where
     binary :: String -> (Expression -> Expression -> Expression) -> Operator Parser Expression
     binary name f = InfixL (f <$ symbol name)
-
-    compose :: (Expression -> Expression -> Operations) -> Expression -> Expression -> Expression
-    compose f a b = Application $ f a b
 
 expression :: Parser Expression
 expression = makeExprParser expressionTerm expressionOperationsTable

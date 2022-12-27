@@ -58,10 +58,10 @@ unit_basicWhileTest = do
   -- let code = "x := 1\n" ++ "write x + 10\n" ++ "while x > 0 do write x; x := x - 1" ++ "write x"
   let code =
         [ Let "x" (Const 1),
-          Write $ Application $ Addition (VariableName "x") (Const 10),
+          Write $ Application Addition (VariableName "x") (Const 10),
           While
-            (Application $ Greater (VariableName "x") (Const 0))
-            [Write $ VariableName "x", Let "x" (Application $ Subtraction (VariableName "x") (Const 1))],
+            (Application Greater (VariableName "x") (Const 0))
+            [Write $ VariableName "x", Let "x" (Application Subtraction (VariableName "x") (Const 1))],
           Write $ VariableName "x"
         ]
   let context = noFlushContext {input = Buffer []}

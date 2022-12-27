@@ -1,7 +1,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE InstanceSigs #-}
 
-module Analysis.IR where
+module Analysis.IR(Instruction(..), Proc(..), M) where
 import Compiler.Hoopl
 import Statement (Expression(..))
 
@@ -32,12 +32,12 @@ instance NonLocal Instruction where
 instance Show (Instruction e x) where
   show (Label l) = show l ++ ": "
   show (Let x expr) = indent $ show x ++ " := " ++ show expr
-  show (If e t f) = indent $ "if " ++ show e ++ "then goto " ++ show t ++ "else goto " ++ show f
-  show (Goto l) = indent $ "goto" ++ show l
+  show (If e t f) = indent $ "if " ++ show e ++ " then goto " ++ show t ++ " else goto " ++ show f
+  show (Goto l) = indent $ "goto " ++ show l
   show (Write expr) = indent $ "write " ++ show expr
   show (Read var) = indent $ "read " ++ var
   show Skip = indent  "Skip"
-  show (Return expr) = indent $ "return" ++ show expr
+  show (Return expr) = indent $ "return " ++ show expr
 
 
 indent :: String -> String
