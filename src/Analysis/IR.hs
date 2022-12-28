@@ -18,7 +18,7 @@ data Instruction e x where
   Write  :: Expression ->                      Instruction O O
   Read   :: String ->                          Instruction O O
   Skip   ::                                    Instruction O O
-  Call   :: String -> [Expression] -> Label -> Instruction O C
+  Call   :: String -> [Expression] -> Label -> Instruction O C -- accidentally should be OC 
 
 instance NonLocal Instruction where
   entryLabel :: Instruction C x -> Label
