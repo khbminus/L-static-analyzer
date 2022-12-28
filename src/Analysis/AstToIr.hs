@@ -42,6 +42,7 @@ splitIntoBlocks xs = splitHelper xs [] []
         splitHelper (x : xs) accBlock acc = case x of
             y@A.If {} -> splitHelper xs [] (acc ++ [(accBlock, Just y)])
             y@(A.While _ _) -> splitHelper xs [] (acc ++ [(accBlock, Just y)])
+            y@(A.FunctionCallStatement _ _) -> splitHelper xs [] (acc ++ [(accBlock, Just y)])
             y -> splitHelper xs (accBlock ++ [y]) acc
 
 blockTransform :: ([A.Statement], Maybe A.Statement) -> Label -> LabelMapM (Label, Graph I.Instruction C C)
@@ -74,9 +75,7 @@ toLast (Just (A.While e s)) next = do
     (sLabel, sGraph) <- fullBlockTransform blocks whileLabel
     let whileGraph = mkFirst (I.Label whileLabel) H.<*> mkMiddles [] H.<*> mkLast (I.If e sLabel next)
     return (I.Goto whileLabel, whileGraph |*><*| sGraph)
-toLast (Just (A.FunctionCallStatement name args)) _ = do
-    label <- getLabel name
-    return (I.Call name args label, emptyClosedGraph) -- TODO: It's invalid logic here. Function call should call function and continue execution.
+toLast (Just (A.FunctionCallStatement name args)) next = return (I.Call name args next, emptyClosedGraph)
 toLast _ _ = error "invalid last"
 
 
@@ -112,14 +111,6 @@ instance Monad LabelMapM where
             let (LabelMapM f2) = k x
             f2 m'
         )
-getLabel :: String -> LabelMapM Label
-getLabel name = LabelMapM f
-    where f m = case M.lookup name m of
-            Just l -> return (m, l)
-            Nothing -> do
-                l <- freshLabel
-                let m' = M.insert name l m
-                return (m', l)
 
 putLabel :: String -> Label -> LabelMapM ()
 putLabel name label = LabelMapM f
