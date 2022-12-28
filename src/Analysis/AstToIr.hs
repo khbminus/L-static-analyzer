@@ -1,26 +1,38 @@
-module Analysis.AstToIr(astToIR) where
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use newtype instead of data" #-}
+module Analysis.AstToIr(astToIR, LabelMap) where
 
-import qualified Statement as A -- AST
-import qualified Analysis.IR as I
-import           Compiler.Hoopl hiding ((<*>))
+import           Compiler.Hoopl hiding ((<*>), LabelMap)
 import qualified Compiler.Hoopl as H ((<*>))
+import qualified Data.Map       as M
+import qualified Statement      as A -- AST
+import qualified Analysis.IR    as I
+import Control.Monad ( ap, liftM )
 
-astToIR :: String -> A.Function -> I.M I.Proc
-astToIR name (A.Function args body _) = do
+-- astToIR transforming file with functions to IR Graph
+-- It ignores code that not in function
+astToIR :: [A.Statement] -> I.M (LabelMap, [I.Proc])
+astToIR code = run $ do
+    mapM getFunction (filter isFunctionDeclaration code)
+
+getFunction :: A.Statement -> LabelMapM I.Proc
+getFunction (A.FunctionDeclaration name (A.Function args body _)) = do
     (entry, body') <- toBody body
+    putLabel name entry
     return $ I.Proc {I.name = name, I.args = args, I.body = body', I.entry = entry}
+getFunction _ = error "only function declaration are supported"
 
-toBody :: [A.Statement] -> I.M (Label, Graph I.Instruction C C)
-toBody bs = do
-   let blocks = splitIntoBlocks bs
+toBody :: [A.Statement] -> LabelMapM (Label, Graph I.Instruction C C)
+toBody body = do
+   let blocks = splitIntoBlocks body
    (lastLabel, lastGraph) <- lastBlock
    (fullLabel, fullGraph) <- fullBlockTransform blocks lastLabel
    return (fullLabel, fullGraph |*><*| lastGraph)
 
-lastBlock :: I.M (Label, Graph I.Instruction C C)
+lastBlock :: LabelMapM (Label, Graph I.Instruction C C)
 lastBlock = do
-    label <- freshLabel
-    return (label, mkFirst (I.Label label) H.<*> mkMiddles [] H.<*> mkLast (I.Return []))
+    label <- newLabel
+    return (label, mkFirst (I.Label label) H.<*> mkMiddles [] H.<*> mkLast (I.Return Nothing))
 
 splitIntoBlocks :: [A.Statement] -> [([A.Statement], Maybe A.Statement)]
 splitIntoBlocks xs = splitHelper xs [] []
@@ -32,15 +44,15 @@ splitIntoBlocks xs = splitHelper xs [] []
             y@(A.While _ _) -> splitHelper xs [] (acc ++ [(accBlock, Just y)])
             y -> splitHelper xs (accBlock ++ [y]) acc
 
-blockTransform :: ([A.Statement], Maybe A.Statement) -> Label -> I.M (Label, Graph I.Instruction C C)
+blockTransform :: ([A.Statement], Maybe A.Statement) -> Label -> LabelMapM (Label, Graph I.Instruction C C)
 blockTransform (code, last) next = do
-    label <- freshLabel
+    label <- newLabel
     let ms = map toMid code
     (last', lastGraph) <- toLast last next
     let graph = mkFirst (I.Label label) H.<*> mkMiddles ms H.<*> mkLast last'
     return (label, graph |*><*| lastGraph)
 
-fullBlockTransform :: [([A.Statement], Maybe A.Statement)] -> Label -> I.M (Label, Graph I.Instruction C C)
+fullBlockTransform :: [([A.Statement], Maybe A.Statement)] -> Label -> LabelMapM (Label, Graph I.Instruction C C)
 fullBlockTransform [] _ = error "Can't process empty body"
 fullBlockTransform [x] next = blockTransform x next
 fullBlockTransform (x : xs) next = do
@@ -48,7 +60,7 @@ fullBlockTransform (x : xs) next = do
     (nowLabel, nowGraph) <- blockTransform x realNextLabel
     return (nowLabel, nowGraph |*><*| nextGraph)
 
-toLast :: Maybe A.Statement -> Label -> I.M (I.Instruction O C, Graph I.Instruction C C)
+toLast :: Maybe A.Statement -> Label -> LabelMapM (I.Instruction O C, Graph I.Instruction C C)
 toLast Nothing next = return (I.Goto next, emptyClosedGraph)
 toLast (Just (A.If e t f)) next = do
     let trueBlocks = splitIntoBlocks t
@@ -58,19 +70,70 @@ toLast (Just (A.If e t f)) next = do
     return (I.If e trueLabel falseLabel, trueGraph |*><*| falseGraph)
 toLast (Just (A.While e s)) next = do
     let blocks = splitIntoBlocks s
-    whileLabel <- freshLabel
+    whileLabel <- newLabel
     (sLabel, sGraph) <- fullBlockTransform blocks whileLabel
     let whileGraph = mkFirst (I.Label whileLabel) H.<*> mkMiddles [] H.<*> mkLast (I.If e sLabel next)
     return (I.Goto whileLabel, whileGraph |*><*| sGraph)
+toLast (Just (A.FunctionCallStatement name args)) _ = do
+    label <- getLabel name
+    return (I.Call name args label, emptyClosedGraph) -- TODO: It's invalid logic here. Function call should call function and continue execution.
 toLast _ _ = error "invalid last"
 
 
 toMid :: A.Statement -> I.Instruction O O
 toMid (A.Let v e) = I.Let v e
-toMid (A.FunctionCallStatement  _ _) = undefined -- FIXME
-toMid (A.FunctionDeclaration _ _) = undefined -- FIXME
+toMid (A.FunctionCallStatement _ _) = error "can't be right here"
+toMid (A.FunctionDeclaration _ _) = error "Non top-level function declaration is not allowed" -- FIXME
 toMid (A.Write expr) =  I.Write expr
 toMid (A.Read expr) = I.Read expr
 toMid A.Skip = I.Skip
 toMid (A.While _ _) = error "can't be right here"
 toMid A.If {} = error "can't be right here"
+
+run :: LabelMapM a -> I.M (LabelMap, a)
+run (LabelMapM f) = f M.empty
+
+type LabelMap = M.Map String Label
+data LabelMapM a = LabelMapM (LabelMap -> I.M (LabelMap, a))
+
+
+instance Functor LabelMapM where
+    fmap = liftM
+
+instance Applicative LabelMapM where
+    pure x = LabelMapM (\m -> return (m, x))
+    (<*>) = ap
+
+instance Monad LabelMapM where
+    return = pure
+    LabelMapM f1 >>= k = LabelMapM (\m ->
+        do
+            (m', x) <- f1 m
+            let (LabelMapM f2) = k x
+            f2 m'
+        )
+getLabel :: String -> LabelMapM Label
+getLabel name = LabelMapM f
+    where f m = case M.lookup name m of
+            Just l -> return (m, l)
+            Nothing -> do
+                l <- freshLabel
+                let m' = M.insert name l m
+                return (m', l)
+
+putLabel :: String -> Label -> LabelMapM ()
+putLabel name label = LabelMapM f
+    where f m = 
+            do
+                return (M.insert name label m, ())
+
+newLabel :: LabelMapM Label
+newLabel = LabelMapM f
+    where f m =
+            do
+                l <- freshLabel
+                return (m, l)
+
+isFunctionDeclaration :: A.Statement -> Bool
+isFunctionDeclaration (A.FunctionDeclaration _ _ ) = True
+isFunctionDeclaration _ = False
