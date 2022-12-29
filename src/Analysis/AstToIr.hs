@@ -73,7 +73,7 @@ toLast (Just (A.While e s)) next = do
     let blocks = splitIntoBlocks s
     whileLabel <- newLabel
     (sLabel, sGraph) <- fullBlockTransform blocks whileLabel
-    let whileGraph = mkFirst (I.Label whileLabel) H.<*> mkMiddles [] H.<*> mkLast (I.If e sLabel next)
+    let whileGraph = mkFirst (I.Label whileLabel) H.<*> mkMiddles [] H.<*> mkLast (I.While e sLabel next)
     return (I.Goto whileLabel, whileGraph |*><*| sGraph)
 toLast (Just (A.FunctionCallStatement name args)) next = return (I.Call name args next, emptyClosedGraph)
 toLast _ _ = error "invalid last"

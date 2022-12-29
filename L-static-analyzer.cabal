@@ -27,6 +27,7 @@ library
   exposed-modules:
       Analysis.AstToIr
       Analysis.IR
+      Analysis.IrToAst
       Console
       ConsoleParser
       Context
