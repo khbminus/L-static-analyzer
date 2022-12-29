@@ -73,7 +73,7 @@ data Function = Function [String] [Statement] (Maybe Expression) deriving (Eq)
 
 instance Show Function where
   show (Function args body Nothing) = "(" ++ show args ++ ") {" ++ show body ++ "}"
-  show (Function args body (Just ret)) = "(" ++ show args ++ ") {" ++ show body ++ "} return" ++ show ret
+  show (Function args body (Just ret)) = "(" ++ show args ++ ") {" ++ show body ++ "} return " ++ show ret
 
 reservedKeywords :: [String]
 reservedKeywords = ["if", "then", "else", "while", "do", "read", "write"]
