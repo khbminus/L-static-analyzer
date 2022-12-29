@@ -49,13 +49,13 @@ unit_expr = do
 
   assertBool "simple expression" $ succExpr "1" (Const 1)
   assertBool "simple with parens" $ succExpr "(1)" (Const 1)
-  assertBool "operations works fine" $ succExpr "1 + 3" (Application $ Addition (Const 1) (Const 3))
+  assertBool "operations works fine" $ succExpr "1 + 3" (Application Addition (Const 1) (Const 3))
   assertBool "precedence works fine" $
     succExpr
       "1 * 2 + 3"
-      ( Application $
+      ( Application
           Addition
-            ( Application $
+            ( Application
                 Multiplication
                   (Const 1)
                   (Const 2)
@@ -78,14 +78,14 @@ unit_let = do
       "x := y % 4 + 2 * 3"
       [ Let
           "x"
-          ( Application $
+          ( Application
               Addition
-                ( Application $
+                ( Application
                     Modulo
                       (VariableName "y")
                       (Const 4)
                 )
-                ( Application $
+                ( Application
                     Multiplication
                       (Const 2)
                       (Const 3)
@@ -106,7 +106,7 @@ unit_let = do
                 VariableName "second",
                 VariableName "third",
                 Const 1,
-                Application $ Addition (Const 2) (Const 3)
+                Application Addition (Const 2) (Const 3)
               ]
           )
       ]
@@ -121,7 +121,7 @@ unit_while = do
     success
       "while 1 + 2 do x := x"
       [ While
-          (Application $ Addition (Const 1) (Const 2))
+          (Application Addition (Const 1) (Const 2))
           [Let "x" (VariableName "x")]
       ]
 
@@ -167,10 +167,10 @@ unit_statement = do
     success
       "write x + 2 * 3"
       [ Write $
-          Application $
+          Application
             Addition
               (VariableName "x")
-              ( Application $
+              ( Application
                   Multiplication
                     (Const 2)
                     (Const 3)
