@@ -27,6 +27,8 @@ library
   exposed-modules:
       Analysis.AstToIr
       Analysis.IR
+      Analysis.Live
+      Analysis.OptSupport
       Console
       ConsoleParser
       Context

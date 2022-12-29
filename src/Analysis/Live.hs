@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall -fno-warn-incomplete-patterns #-}
 {-# LANGUAGE ScopedTypeVariables, GADTs #-}
-module Analysis.Live (liveLattice, liveness, deadAsstElim) where
+module Analysis.Live where
 
 import Data.Maybe
 import qualified Data.Set as S
@@ -9,11 +9,10 @@ import Compiler.Hoopl
 import Analysis.IR
 import Analysis.OptSupport
 import Statement (Expression(VariableName))
--- import Context (VarContext(..), varsNames)
 
 type Var = String
-
 type Live = S.Set Var
+
 liveLattice :: DataflowLattice Live
 liveLattice = DataflowLattice
   { fact_name = "Live variables"
