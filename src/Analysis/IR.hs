@@ -18,6 +18,7 @@ data Instruction e x where
   Write  :: Expression ->                      Instruction O O
   Read   :: String ->                          Instruction O O
   Skip   ::                                    Instruction O O
+  While  :: Expression -> Label -> Label ->    Instruction O C
   Call   :: String -> [Expression] -> Label -> Instruction O C -- accidentally should be OC 
 
 instance NonLocal Instruction where
@@ -28,6 +29,7 @@ instance NonLocal Instruction where
   successors (If _ t f) = [t, f]
   successors (Call _ _ l) = [l]
   successors (Return _) = []
+  successors (While _ start next) = [start, next]
 
 instance Show (Instruction e x) where
   show (Label l) = show l ++ ": "
@@ -40,6 +42,7 @@ instance Show (Instruction e x) where
   show (Return Nothing) = indent $ "return"
   show (Return (Just x)) = indent $ "return " ++ show x
   show (Call name args toLabel) = indent $ "call " ++ name ++ "(" ++ show args ++ " -> " ++ show toLabel
+  show (While expr start next) = indent $ "while (" ++ show expr ++ ") goto " ++ show start ++ " after goto " ++ show next
 
 indent :: String -> String
 indent x = "  " ++ x
