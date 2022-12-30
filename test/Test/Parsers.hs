@@ -228,12 +228,12 @@ unit_functionsDeclarations = do
       [] 
       [
         Let "x" (Const 0),
-        If (Application (Equals (Const 0) (Const 0))) 
+        If (Application Equals (Const 0) (Const 0)) 
           [
-            Let "y" (Application (Addition (VariableName "y") (Const 3)))
+            Let "y" (Application Addition (VariableName "y") (Const 3))
           ] 
           [
-            Let "z" (Application (Addition (VariableName "z") (Const 1)))
+            Let "z" (Application Addition (VariableName "z") (Const 1))
           ]
       ] 
       (Just (VariableName "y")))]
