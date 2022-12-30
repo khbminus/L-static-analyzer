@@ -5,12 +5,14 @@ import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
 import Hedgehog
 import Control.Monad.State
-import Control.Monad.Trans.Maybe (MaybeT(runMaybeT))
 import Test.Tasty (TestTree)
 import Test.Tasty.Hedgehog
 import Test.PropertyExpr (genExpr)
 import qualified Statement as A
 import Data.List (nub)
+import Analysis.Live (optimizeLive)
+import qualified Context
+import Execute (execute)
 
 genVarName :: [String] -> Int -> Gen String
 genVarName _ 0 = error "too short"
@@ -83,10 +85,58 @@ genStatements vars bodyLen lenVar limVal = do
 genFunction :: Int -> Int -> Int -> Int -> Gen A.Function -- all functions are void due to my laziness
 genFunction argsNum bodyLen lenVar limVal = do
     args <- Gen.subterm (Gen.list (Range.constant 0 argsNum) (genVarName [] lenVar)) id
-    (body, _) <- Gen.subterm (genStatements args bodyLen lenVar limVal) id 
+    (body, _) <- Gen.subterm (genStatements args bodyLen lenVar limVal) id
     return $ A.Function args body Nothing
 
 genAst :: Int -> Int -> Int -> Int -> Int -> Gen [A.Statement]
 genAst numOfFun argsNum bodyLen lenVar limVal = Gen.list (Range.constant 1 numOfFun) genFunDecl
     where
         genFunDecl = A.FunctionDeclaration <$> genVarName [] lenVar <*> genFunction argsNum bodyLen lenVar limVal
+
+noFlushContext :: Context.Context
+noFlushContext = Context.newContext {Context.flushEnabled = False}
+
+declToCall :: A.Statement -> (String, Int)
+declToCall (A.FunctionDeclaration name (A.Function args _ _)) = (name, length args)
+declToCall _ = error "unsupported"
+
+genFunCalls :: [(String, Int)] -> Int -> Int -> Gen [A.Statement]
+genFunCalls funs amount limVar = Gen.list (Range.singleton amount) genCall
+    where
+        genArgs :: Int -> Gen [A.Expression]
+        genArgs x = Gen.list (Range.singleton x) (genExpr limVar [])
+
+        genCall :: Gen A.Statement
+        genCall = do
+            (name, argsCnt) <- Gen.element funs
+            args <- genArgs argsCnt
+            return $ A.FunctionCallStatement name args
+
+prop_is_eval_ok :: Property
+prop_is_eval_ok = property $ do
+    let numOfFuns = 5
+    let argsNum = 3
+    let bodyLen = 3
+    let lenVar = 2
+    let limVar = 1000
+    ast <- forAll $ genAst numOfFuns argsNum bodyLen lenVar limVar
+    let funParams = map declToCall ast
+    let optAst = optimizeLive ast
+    let ctx1 = noFlushContext {Context.input = Context.Buffer []}
+    let ctx2 = noFlushContext {Context.input = Context.Buffer []}
+
+    ctx1' <- liftIO $ execStateT (execute ast) ctx1
+    ctx2' <- liftIO $ execStateT (execute optAst) ctx2
+
+    let callsAmount = 10
+
+    calls <- forAll $ genFunCalls funParams callsAmount limVar
+
+    ctx1'' <- liftIO $ execStateT (execute calls) ctx1'
+    ctx2'' <- liftIO $ execStateT (execute calls) ctx2'
+    Context.output  ctx1'' === Context.output ctx2''
+
+
+props :: [TestTree]
+props =
+    [ testProperty "Test correctness of liveness optimization" prop_is_eval_ok ]

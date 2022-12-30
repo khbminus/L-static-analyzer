@@ -28,6 +28,8 @@ library
       Analysis.AstToIr
       Analysis.IR
       Analysis.IrToAst
+      Analysis.Live
+      Analysis.OptSupport
       Console
       ConsoleParser
       Context
@@ -80,6 +82,7 @@ test-suite L-static-analyzer-test
       Test.ConsoleParser
       Test.Evaluate
       Test.Execute
+      Test.Live
       Test.Parsers
       Test.PropertyExpr
       Test.PropertyOptimizing
