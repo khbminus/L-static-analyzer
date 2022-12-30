@@ -26,6 +26,7 @@ source-repository head
 library
   exposed-modules:
       Analysis.AstToIr
+      Analysis.IrToAst
       Analysis.IR
       Analysis.Live
       Analysis.OptSupport
@@ -82,6 +83,7 @@ test-suite L-static-analyzer-test
       Test.Evaluate
       Test.Execute
       Test.Parsers
+      Test.Live
       Paths_L_static_analyzer
   hs-source-dirs:
       test

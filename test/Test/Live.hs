@@ -6,7 +6,9 @@ import Analysis.IR (Proc (..), M)
 import Statement (Statement)
 import Grammar (parseStatement)
 import Data.Either (isLeft, fromRight)
+import Data.Maybe (fromJust)
 import Analysis.AstToIr (astToIR)
+import Analysis.IrToAst (irToAst)
 import Analysis.Live (liveLattice, liveness, deadAsstElim)
 
 import Test.Tasty.HUnit (assertBool)
@@ -35,7 +37,7 @@ parse str = if any isLeft parsed
         -- f :: [Statement] -> Either (ParseErrorBundle String Void) [Statement] -> [Statement]
         f b a = b ++ fromRight [] a
 
-optimize :: String -> String
+optimize :: String -> [Statement]
 optimize text = do
     case fmap astToIR (parse text) of
         Nothing -> error "Parsing error"
@@ -46,9 +48,15 @@ optimize text = do
                     -- lbmaps = runSimpleUniqueMonad $ runWithFuel fuel (liftM (fst . unzip) p)
                     -- expected = runSimpleUniqueMonad $ runWithFuel fuel exps
                 -- TODO: get Instructions from [Proc]
-                -- foldl (++) [] (map show opted)
+                irToAst opted
   where
     fuel = 9999
 
+unit_Liveness :: IO ()
 unit_Liveness = do
-    -- putStrLn $ optimize "def f() { x := 1; y := 5; y := x }" 
+    let testCode = "def f() { skip } return 5"
+    print testCode
+    let parsed = fromJust (parse testCode)
+    let ir     = fmap snd (astToIR parsed)
+    let opted = runSimpleUniqueMonad $ runWithFuel 9999 ir
+    print $ (show . head) $ irToAst opted

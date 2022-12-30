@@ -16,23 +16,23 @@ astToIR code = run $ do
     mapM getFunction (filter isFunctionDeclaration code)
 
 getFunction :: A.Statement -> LabelMapM I.Proc
-getFunction (A.FunctionDeclaration name (A.Function args body _)) = do
-    (entry, body') <- toBody body
+getFunction (A.FunctionDeclaration name (A.Function args body retExpr)) = do
+    (entry, body') <- toBody body retExpr
     putLabel name entry
     return $ I.Proc {I.name = name, I.args = args, I.body = body', I.entry = entry}
 getFunction _ = error "only function declaration are supported"
 
-toBody :: [A.Statement] -> LabelMapM (Label, Graph I.Instruction C C)
-toBody body = do
+toBody :: [A.Statement] -> Maybe A.Expression -> LabelMapM (Label, Graph I.Instruction C C)
+toBody body retExpr = do
    let blocks = splitIntoBlocks body
-   (lastLabel, lastGraph) <- lastBlock
+   (lastLabel, lastGraph) <- lastBlock retExpr
    (fullLabel, fullGraph) <- fullBlockTransform blocks lastLabel
    return (fullLabel, fullGraph |*><*| lastGraph)
 
-lastBlock :: LabelMapM (Label, Graph I.Instruction C C)
-lastBlock = do
+lastBlock :: Maybe A.Expression -> LabelMapM (Label, Graph I.Instruction C C)
+lastBlock retExpr = do
     label <- newLabel
-    return (label, mkFirst (I.Label label) H.<*> mkMiddles [] H.<*> mkLast (I.Return Nothing))
+    return (label, mkFirst (I.Label label) H.<*> mkMiddles [] H.<*> mkLast (I.Return retExpr))
 
 splitIntoBlocks :: [A.Statement] -> [([A.Statement], Maybe A.Statement)]
 splitIntoBlocks xs = splitHelper xs [] []
@@ -73,7 +73,7 @@ toLast (Just (A.While e s)) next = do
     let blocks = splitIntoBlocks s
     whileLabel <- newLabel
     (sLabel, sGraph) <- fullBlockTransform blocks whileLabel
-    let whileGraph = mkFirst (I.Label whileLabel) H.<*> mkMiddles [] H.<*> mkLast (I.If e sLabel next)
+    let whileGraph = mkFirst (I.Label whileLabel) H.<*> mkMiddles [] H.<*> mkLast (I.While e sLabel next)
     return (I.Goto whileLabel, whileGraph |*><*| sGraph)
 toLast (Just (A.FunctionCallStatement name args)) next = return (I.Call name args next, emptyClosedGraph)
 toLast _ _ = error "invalid last"

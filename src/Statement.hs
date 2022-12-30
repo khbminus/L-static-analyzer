@@ -71,9 +71,14 @@ instance Show Statement where
 
 data Function = Function [String] [Statement] (Maybe Expression) deriving (Eq)
 
+joinToString :: Show a => String -> [a] -> String
+joinToString _ [x]        = show x
+joinToString delim (x:xs) = show x ++ delim ++ joinToString delim xs
+joinToString _ []         = ""
+
 instance Show Function where
-  show (Function args body Nothing) = "(" ++ show args ++ ") {" ++ show body ++ "}"
-  show (Function args body (Just ret)) = "(" ++ show args ++ ") {" ++ show body ++ "} return" ++ show ret
+  show (Function args body Nothing)    = "(" ++ joinToString ", " args ++ ") { " ++ joinToString "; " body ++ " }"
+  show (Function args body (Just ret)) = "(" ++ joinToString ", " args ++ ") { " ++ joinToString "; " body ++ " } return " ++ show ret
 
 reservedKeywords :: [String]
 reservedKeywords = ["if", "then", "else", "while", "do", "read", "write"]

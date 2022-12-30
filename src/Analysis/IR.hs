@@ -12,12 +12,12 @@ data Proc = Proc { name :: String, args :: [String], entry :: Label, body :: Gra
 data Instruction e x where
   Label  :: Label ->                           Instruction C O
   Let    :: String -> Expression ->            Instruction O O
-  If     :: Expression -> Label -> Label ->    Instruction O C
-  Return :: Maybe Expression ->                Instruction O C
-  Goto   :: Label ->                           Instruction O C
   Write  :: Expression ->                      Instruction O O
   Read   :: String ->                          Instruction O O
   Skip   ::                                    Instruction O O
+  If     :: Expression -> Label -> Label ->    Instruction O C
+  Return :: Maybe Expression ->                Instruction O C
+  Goto   :: Label ->                           Instruction O C
   While  :: Expression -> Label -> Label ->    Instruction O C
   Call   :: String -> [Expression] -> Label -> Instruction O C -- accidentally should be OC 
 
@@ -25,6 +25,7 @@ instance NonLocal Instruction where
   entryLabel :: Instruction C x -> Label
   entryLabel (Label l) = l
 
+  successors :: Instruction e C -> [Label]
   successors (Goto l) = [l]
   successors (If _ t f) = [t, f]
   successors (Call _ _ l) = [l]
@@ -32,6 +33,7 @@ instance NonLocal Instruction where
   successors (While _ start next) = [start, next]
 
 instance Show (Instruction e x) where
+  show :: Instruction e x -> String
   show (Label l) = show l ++ ": "
   show (Let x expr) = indent $ show x ++ " := " ++ show expr
   show (If e t f) = indent $ "if " ++ show e ++ " then goto " ++ show t ++ " else goto " ++ show f
