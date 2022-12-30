@@ -103,6 +103,23 @@ transformBlock blk whileHeads = do
         else do
             return body'
 
+findReturn :: Label -> S.Set Label -> State IRBlockStorage (Maybe (Maybe A.Expression))
+findReturn blk used = do
+    storage <- get
+    case M.lookup blk (blocks storage) of
+        Nothing -> return Nothing
+        Just blk' -> 
+            case next blk' of
+                I.Return x -> return $ Just x
+                I.Goto l -> go l
+                I.Call _ _ l -> go l
+                I.If _ t _ -> go t -- only one return is possible, moreover return is placed in end of each branch of if
+                I.While _ _ l -> go l
+    where
+        go :: Label -> State IRBlockStorage (Maybe (Maybe A.Expression))
+        go l = if S.member l used then return Nothing else findReturn l (S.insert l used)
+
+
 procToFunc :: I.Proc -> A.Statement
 procToFunc p = let irProc = fromProcToBlocks p in
                let blocks' = map (\x -> (label x, x)) (procBody irProc) in
@@ -115,7 +132,7 @@ procToFunc p = let irProc = fromProcToBlocks p in
                     Just x -> x
                     Nothing -> error $ "can't find start block with label " ++ show (I.entry p)
                 getReturn :: IRBlockStorage -> Maybe A.Expression
-                getReturn s = fromMaybe Nothing (M.lookup (I.entry p) (returns s))
+                getReturn s = fromMaybe Nothing $ evalState (findReturn (I.entry p) S.empty) s
 
 irToAst :: [I.Proc] -> [A.Statement]
 irToAst = map procToFunc
