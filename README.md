@@ -17,7 +17,7 @@ That generally is
 if <expr> then { <trueBody> } else { <falseBody> }
 ```
 
-*`while`:
+* `while`:
 
 ```text
 while x > 10 do { write x; x := x - 1 }
