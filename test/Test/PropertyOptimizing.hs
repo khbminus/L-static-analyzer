@@ -114,15 +114,15 @@ genFunCalls funs amount limVar = Gen.list (Range.singleton amount) genCall
 
 isError :: MonadTest m => Context.Context -> Context.Context -> m ()
 isError ctx1@Context.Context {Context.error = x} ctx2@Context.Context {Context.error = y} = case x of
-    Just _ -> if isJust y then success else failure
+    Just _ -> success -- def f() { a := 1 / 0 } should fail in unoptimized and work in optimized
     Nothing -> if isNothing y then Context.output  ctx1 === Context.output ctx2  else failure
 
 prop_is_eval_ok :: Property
 prop_is_eval_ok = property $ do
-    let numOfFuns = 3
-    let argsNum = 3
-    let bodyLen = 2
-    let lenVar = 2
+    let numOfFuns = 7
+    let argsNum = 5
+    let bodyLen = 3
+    let lenVar = 3
     let limVar = 1000
     ast <- forAll $ genAst numOfFuns argsNum bodyLen lenVar limVar
     let funParams = map declToCall ast
@@ -133,7 +133,7 @@ prop_is_eval_ok = property $ do
     ctx1' <- liftIO $ execStateT (execute ast) ctx1
     ctx2' <- liftIO $ execStateT (execute optAst) ctx2
 
-    let callsAmount = 2
+    let callsAmount = 100
 
     calls <- forAll $ genFunCalls funParams callsAmount limVar
 
