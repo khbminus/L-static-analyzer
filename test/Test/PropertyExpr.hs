@@ -15,21 +15,22 @@ import Test.Tasty.Hedgehog
 genOp :: Gen Operations
 genOp = Gen.element [Addition, Subtraction, Multiplication, Division, Modulo, Less, Greater, LessOrEquals, GreaterOrEquals, Equals, NotEquals]
 
-genExpr :: Int -> Gen Expression
-genExpr n =
+genExpr :: Int -> [String] -> Gen Expression
+genExpr n vars =
     Gen.recursive
         Gen.choice
-        [
-            numGen
-        ]
+        nonRecGens
         [
             binOpGen
         ]
     where
         binOpGen = do
             op <- genOp
-            Gen.subterm2 (genExpr n) (genExpr n) (Application op)
+            Gen.subterm2 (genExpr n vars) (genExpr n vars) (Application op)
         numGen = Const <$> Gen.int (Range.constant 0 n)
+        varGen = VariableName <$> Gen.element vars
+
+        nonRecGens = numGen : ([varGen | not (null vars)])
 
 
 evalExpr :: Expression -> Maybe Int
@@ -56,7 +57,7 @@ evalExpr _ = error "expression not supported"
 
 prop_eval_correct :: Property
 prop_eval_correct = property $ do
-    expr <- forAll $ genExpr 1000
+    expr <- forAll $ genExpr 1000 []
     let !res = evalExpr expr
     let ctx = newContext
     let a = evalStateT (runMaybeT (evaluateExpression expr)) ctx
@@ -64,5 +65,5 @@ prop_eval_correct = property $ do
     res === res'
 
 props :: [TestTree]
-props = 
+props =
     [ testProperty "Test correctness of expression evaluation" prop_eval_correct ]

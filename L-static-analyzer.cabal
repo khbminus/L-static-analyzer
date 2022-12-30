@@ -82,6 +82,7 @@ test-suite L-static-analyzer-test
       Test.Execute
       Test.Parsers
       Test.PropertyExpr
+      Test.PropertyOptimizing
       Paths_L_static_analyzer
   hs-source-dirs:
       test
