@@ -47,6 +47,9 @@ funCall = do
 parens :: Parser a -> Parser a
 parens = between (symbol "(") (symbol ")")
 
+curlyParens :: Parser a -> Parser a
+curlyParens = between (symbol "{") (symbol "}")
+
 expressionTerm :: Parser Expression
 expressionTerm =
   choice
@@ -104,7 +107,7 @@ while =
   singleton
     <$> ( While
             <$> (between (symbol "while") (symbol "do") expression <?> "While condition")
-            <*> (statement <?> "While statement")
+            <*> (curlyParens statement <?> "While statement")
         )
 
 ifThenElse :: Parser [Statement]
@@ -112,8 +115,8 @@ ifThenElse =
   singleton
     <$> ( If
             <$> (symbol "if" *> expression <?> "If condition")
-            <*> (symbol "then" *> statement <?> "True statement")
-            <*> (symbol "else" *> statement <?> "False Statement")
+            <*> (symbol "then" *> curlyParens statement <?> "True statement")
+            <*> (symbol "else" *> curlyParens statement <?> "False Statement")
         )
 
 funCallStatement :: Parser [Statement]
@@ -132,8 +135,8 @@ functionDeclaration =
   buildDeclaration
     <$> (symbol "def" *> name)
     <*> parens (name `sepBy` symbol ",")
-    <*> (symbol "{" *> statement)
-    <*> (symbol "}" *> optional (symbol "return" *> expression))
+    <*> curlyParens statement
+    <*> optional (symbol "return" *> expression)
   where
     buildDeclaration a b c d = [FunctionDeclaration a (Function b c d)]
 
@@ -144,14 +147,13 @@ split :: Parser [Statement]
 split = concat <$> (statement `sepBy1` symbol ";")
 
 statement :: Parser [Statement]
-statement =
-  try while
-    <|> try ifThenElse
-    <|> concat <$> (terms `sepBy1` symbol ";")
+statement = concat <$> (terms `sepBy1` symbol ";")
   where
     terms =
       choice
-        [ write,
+        [ ifThenElse,
+          while,
+          write,
           readVariable,
           skip,
           try funCallStatement,
