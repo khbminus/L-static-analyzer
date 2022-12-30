@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Use newtype instead of data" #-}
-module Analysis.AstToIr(astToIR, LabelMap) where
+module Analysis.AstToIr(astToIR, LabelMap, isFunctionDeclaration) where
 
 import           Compiler.Hoopl hiding ((<*>), LabelMap)
 import qualified Compiler.Hoopl as H ((<*>))
