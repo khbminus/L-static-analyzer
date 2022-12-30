@@ -2,7 +2,8 @@ module Test.ConsoleParser where
 
 import Grammar (Parser)
 import ConsoleParser (varArgParser, getVarContext)
-import Test.HUnit
+import Test.Tasty.HUnit
+import Test.Tasty
 import Text.Megaparsec
 import Context (VarContext(..))
 import qualified Data.Map as Map
@@ -32,7 +33,13 @@ unit_varArgParser = do
 varContextComp :: [String] -> [(String, Int)] -> Bool
 varContextComp inp cxt = getVarContext inp == VarContext { varContext = Map.fromList cxt }
 
-unit_getVarContext :: IO ()
+unit_getVarContext :: Assertion
 unit_getVarContext = do
   assertBool "1" $ varContextComp ["var=234", "var2=0"] [("var", 234), ("var2", 0)]
   assertBool "2" $ varContextComp ["var=24", "var=0"]   [("var", 24)]
+
+unitTests :: [TestTree]
+unitTests = 
+  [ testCase "var arg parser" unit_varArgParser
+  , testCase "get var context" unit_getVarContext
+  ]

@@ -26,8 +26,8 @@ source-repository head
 library
   exposed-modules:
       Analysis.AstToIr
-      Analysis.IrToAst
       Analysis.IR
+      Analysis.IrToAst
       Analysis.Live
       Analysis.OptSupport
       Console
@@ -82,8 +82,10 @@ test-suite L-static-analyzer-test
       Test.ConsoleParser
       Test.Evaluate
       Test.Execute
-      Test.Parsers
       Test.Live
+      Test.Parsers
+      Test.PropertyExpr
+      Test.PropertyOptimizing
       Paths_L_static_analyzer
   hs-source-dirs:
       test
@@ -105,6 +107,8 @@ test-suite L-static-analyzer-test
     , tasty
     , tasty-discover
     , tasty-hedgehog
+    , tasty-hspec
     , tasty-hunit
+    , tasty-quickcheck
     , transformers
   default-language: Haskell2010

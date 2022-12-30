@@ -77,7 +77,7 @@ instance Show Statement where
   show (Write x) = "write " ++ show x
   show (Read x) = "read " ++ x
   show (While e s) = "while (" ++ show e ++ ") " ++ bodyToString s
-  show (If e t f) = "If " ++ show e ++ " then " ++ bodyToString t ++ " else " ++ bodyToString f
+  show (If e t f) = "if " ++ show e ++ " then " ++ bodyToString t ++ " else " ++ bodyToString f
   show Skip = "skip"
 
 data Function = Function [String] [Statement] (Maybe Expression) deriving (Eq)

@@ -1,5 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
-
 module Evaluate (evaluateStatements, evaluateOneStatement, evaluateExpression, evaluateList) where
 
 import Context (Context (..), getFunT, getVarT, loadFunStack, setFun, setVar, unloadFunStack, popInput, setErrorT, pushOutput, flush)
@@ -9,7 +7,7 @@ import Statement (Expression (..), Function (..), Operations (..), Statement (..
 import Text.Read (readMaybe)
 import Control.Monad.Trans.Maybe (MaybeT(runMaybeT))
 import Data.Maybe (isNothing, fromJust, isJust)
-import Error (RuntimeError(InvalidInput, UnexpectedEOF))
+import Error (RuntimeError(InvalidInput, UnexpectedEOF, DivisionByZero))
 import GHC.IO.Handle (hIsOpen)
 import GHC.IO.Handle.FD (stdin)
 
@@ -40,22 +38,28 @@ evaluateExpression (FunctionCall name argumentValues) = do
 evaluateExpression (Application op x y) = do
   x' <- evaluateExpression x
   y' <- evaluateExpression y
-  return $ unpack op x' y'
+  case unpack op x' y' of
+    Just v -> return v
+    Nothing -> do
+      ctx <- get
+      put ctx {Context.error = Just $ DivisionByZero}
+      mzero
+
   where
-    unpack :: Operations -> (Int -> Int -> Int)
-    unpack Addition = (+)
-    unpack Subtraction = (-)
-    unpack Division = div
-    unpack Multiplication = (*)
-    unpack Modulo = mod
-    unpack Equals = fromBool .* (==)
-    unpack NotEquals = fromBool .* (/=)
-    unpack Greater = fromBool .* (>)
-    unpack GreaterOrEquals = fromBool .* (>=)
-    unpack Less = fromBool .* (<)
-    unpack LessOrEquals = fromBool .* (<=)
-    unpack LazyAnd = lazyAnd
-    unpack LazyOr = lazyOr
+    unpack :: Operations -> (Int -> Int -> Maybe Int)
+    unpack Addition = Just .* (+)
+    unpack Subtraction = Just .* (-)
+    unpack Division = \a b -> if b == 0 then Nothing else Just $ a `div` b
+    unpack Multiplication = Just .* (*)
+    unpack Modulo = \a b -> if b == 0 then Nothing else Just $ a `mod` b
+    unpack Equals = Just . fromBool .* (==)
+    unpack NotEquals = Just . fromBool .* (/=)
+    unpack Greater = Just . fromBool .* (>)
+    unpack GreaterOrEquals = Just . fromBool .* (>=)
+    unpack Less = Just . fromBool .* (<)
+    unpack LessOrEquals = Just . fromBool .* (<=)
+    unpack LazyAnd = Just .* lazyAnd
+    unpack LazyOr = Just .* lazyOr
 
     lazyAnd :: Int -> Int -> Int
     lazyAnd lft rgt = if lft == 0 then 0 else boolToInt rgt

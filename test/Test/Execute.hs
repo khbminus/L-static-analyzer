@@ -8,7 +8,8 @@ import Evaluate (evaluateStatements)
 import GHC.IO.Handle (hClose)
 import GHC.IO.Handle.FD (stdin)
 import Statement (Expression (..), Operations (..), Statement (..))
-import Test.Tasty.HUnit (assertBool)
+import Test.Tasty.HUnit (assertBool, Assertion, testCase)
+import Test.Tasty
 import Execute(run)
 
 checkOutput :: Context -> [String] -> Bool
@@ -20,7 +21,7 @@ checkError cxt err = Context.error cxt == Just err
 noFlushContext :: Context
 noFlushContext = newContext {flushEnabled = False}
 
-unit_executeWrite :: IO ()
+unit_executeWrite :: Assertion
 unit_executeWrite = do
   let writeConst = Write (Const 1)
   let writeVar = Write (VariableName "var")
@@ -38,7 +39,7 @@ unit_executeWrite = do
   assertBool "write var failure" $ checkOutput exitContext []
   assertBool "write var failure" $ checkError exitContext (VarNotFound "var")
 
-unit_executeRead :: IO ()
+unit_executeRead :: Assertion
 unit_executeRead = do
   let readVar = Read "var"
   let writeConst = Write (Const 1)
@@ -53,7 +54,7 @@ unit_executeRead = do
   exitContext <- execStateT (evaluateStatements [readVar]) noFlushContext
   assertBool "read var failure: end of input" $ checkError exitContext UnexpectedEOF
 
-unit_basicWhileTest :: IO ()
+unit_basicWhileTest :: Assertion
 unit_basicWhileTest = do
   -- let code = "x := 1\n" ++ "write x + 10\n" ++ "while x > 0 do write x; x := x - 1" ++ "write x"
   let code =
@@ -70,7 +71,7 @@ unit_basicWhileTest = do
   exitContext <- execStateT (evaluateStatements code) context
   assertBool "test successfull" $ checkOutput exitContext ["11", "1", "0"]
 
-unit_functions :: IO ()
+unit_functions :: Assertion
 unit_functions = do
   let code = 
         [
@@ -105,3 +106,10 @@ unit_functions = do
     "7"
     ]
   
+unitTests :: [TestTree]
+unitTests = 
+  [ testCase "execute write" unit_executeWrite
+  , testCase "execute read" unit_executeRead
+  , testCase "basic while test" unit_basicWhileTest
+  , testCase "functions" unit_functions
+  ]
