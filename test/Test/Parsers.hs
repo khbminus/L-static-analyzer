@@ -93,7 +93,7 @@ unit_let = do
           )
       ]
 
-  assertBool "assign statement" $ fail "x := while 1 do 2"
+  assertBool "assign statement" $ fail "x := while 1 do { 2 }"
 
   assertBool "assign function call" $
     success
@@ -116,10 +116,10 @@ unit_while = do
   let success = parseSuccessful while
   let fail = parseFailed while
 
-  assertBool "simple while" $ success "while 1 do x := x" [While (Const 1) [Let "x" (VariableName "x")]]
+  assertBool "simple while" $ success "while 1 do { x := x }" [While (Const 1) [Let "x" (VariableName "x")]]
   assertBool "complicated expression" $
     success
-      "while 1 + 2 do x := x"
+      "while 1 + 2 do { x := x }"
       [ While
           (Application Addition (Const 1) (Const 2))
           [Let "x" (VariableName "x")]
@@ -127,7 +127,7 @@ unit_while = do
 
   assertBool "function call" $
     success
-      "while f(1) do x := x"
+      "while f(1) do { x := x }"
       [ While
           (FunctionCall "f" [Const 1])
           [Let "x" (VariableName "x")]
@@ -136,7 +136,7 @@ unit_while = do
   assertBool "just while fails" $ fail "while"
   assertBool "just while-do failes" $ fail "while do"
   assertBool "without statement fail" $ fail "while 1 do"
-  assertBool "without condition fail" $ fail "while do x := x"
+  assertBool "without condition fail" $ fail "while do { x := x }"
 
 unit_if :: IO ()
 unit_if = do
@@ -145,7 +145,7 @@ unit_if = do
 
   assertBool "simple if" $
     success
-      "if 1 then a(1) else a(2)"
+      "if 1 then { a(1) } else { a(2) }"
       [ If
           (Const 1)
           [FunctionCallStatement "a" [Const 1]]
@@ -180,7 +180,7 @@ unit_statement = do
   assertBool "multiplie statements" $ success "x := a; y := b" [Let "x" $ VariableName "a", Let "y" $ VariableName "b"]
   assertBool "while with long body" $
     success
-      "while 1 do x := a; y := b"
+      "while 1 do { x := a; y := b }"
       [ While
           (Const 1)
           [ Let "x" $ VariableName "a",
@@ -219,5 +219,21 @@ unit_functionsDeclarations = do
   assertBool "With params" $ success "def f(a, b, c, d, e, f) { skip  }" [FunctionDeclaration "f" (Function ["a", "b", "c", "d", "e", "f"] [Skip] Nothing)]
   assertBool "Identity function" $ success "def f(x) { skip } return x" [FunctionDeclaration "f" (Function ["x"] [Skip] (Just $ VariableName "x"))]
   
-  assertBool "Wierd argument name" $ fail "def f(asdas  d  sda  ) {skip}"
+  assertBool "Weird argument name" $ fail "def f(asdas  d  sda  ) {skip}"
   assertBool "Unclosed comma" $ fail "def f(a,) {skip}"
+
+  assertBool "If in the middle of declaration" $ success "def f() { x := 0; if 0 == 0 then { y := y + 3 } else { z := z + 1 } } return y" 
+    [FunctionDeclaration "f" (
+      Function 
+      [] 
+      [
+        Let "x" (Const 0),
+        If (Application (Equals (Const 0) (Const 0))) 
+          [
+            Let "y" (Application (Addition (VariableName "y") (Const 3)))
+          ] 
+          [
+            Let "z" (Application (Addition (VariableName "z") (Const 1)))
+          ]
+      ] 
+      (Just (VariableName "y")))]
