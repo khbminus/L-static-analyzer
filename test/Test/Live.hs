@@ -2,16 +2,16 @@
 module Test.Live where
 
 import Compiler.Hoopl
-import Analysis.IR (Proc (..), M, Instruction (Return))
+import Analysis.IR (Proc (..), M)
 import Statement (Statement (..), Function (Function), Expression (..), Operations (Equals, Addition))
-import Grammar (parseStatement, ifThenElse)
+import Grammar (parseStatement)
 import Data.Either (isLeft, fromRight)
 import Data.Maybe (fromJust)
 import Analysis.AstToIr (astToIR)
 import Analysis.IrToAst (irToAst)
 import Analysis.Live (liveLattice, liveness, deadAsstElim)
 
-import Test.Tasty.HUnit (assertBool, assertEqual)
+import Test.Tasty.HUnit (assertEqual)
 
 type ErrorM = Either String
 
@@ -51,6 +51,9 @@ optimize text = do
   where
     fuel = 9999
 
+increment :: String -> Expression -> Statement
+increment var expr = Let var (Application Addition (VariableName var) expr)
+
 unit_Liveness :: IO ()
 unit_Liveness = do
     let testCode1 = "def f() { x := 5; y := x } return 1"
@@ -78,16 +81,26 @@ unit_ReadWrite = do
     assertEqual "Liveness 1" (optimize testCode1) expected1
     assertEqual "Liveness 2" (optimize testCode2) expected2
 
--- unit_If :: IO ()
--- unit_If = do
---     let increment var expr = Let var (Application Addition (VariableName var) expr)
-
---     let testCode1 = "def f() { y := 0; z := 0; if 0 == 0 then y := y + 3 else z := z + 1 } return y"
---     let expected1 = [FunctionDeclaration "f" (Function [] [Let "y" (Const 0), If (Application Equals (Const 0) (Const 0)) [increment "y" (Const 3)] []] (Just $ VariableName "y"))]
+unit_If :: IO ()
+unit_If = do
+    let testCode1 = "def f() { y := 0; z := 0; if z == 0 then { y := y + 3 } else { z := z + 1 } } return y"
+    let expected1 = [FunctionDeclaration "f" (Function [] [Let "y" (Const 0), Let "z" (Const 0), If (Application Equals (VariableName "z") (Const 0)) [increment "y" (Const 3)] []] (Just $ VariableName "y"))]
     
---     let testCode2 = "def f() { y := 0; z := 0; if x == 0 then y := y + 3 else z := z + 1 } return y + z"
---     let expected2 = fromJust $ parse testCode2
---     -- [FunctionDeclaration "f" (Function [] [Let "y" (Const 0), Let "z" (Const 0), If (Application Equals (Const 0) (Const 0)) [increment "y" (Const 3)] [increment "z" (Const 1)]] (Just $ Application Addition (VariableName "y") (VariableName "z")))]
+    let testCode2 = "def f() { y := 0; z := 0; if z == 0 then { y := y + 3 } else { z := z + 1 } } return y + z"
+    let expected2 = fromJust $ parse testCode2
 
---     assertEqual "remove branch" (optimize testCode1) expected1
---     assertEqual "unchanged"     (optimize testCode2) expected2
+    assertEqual "remove branch" (optimize testCode1) expected1
+    assertEqual "unchanged"     (optimize testCode2) expected2
+
+unit_While :: IO ()
+unit_While = do
+    let testCode1 = "def f() { x := 0; while 0 == 0 do { x := x + 3 } } return x"
+    let expected1 = fromJust $ parse testCode1
+
+    let testCode2 = "def f() { x := 0; while 0 == 0 do { x := x + 3 } }"
+    let expected2 = [FunctionDeclaration "f" $ Function [] [While (Application Equals (Const 0) (Const 0)) []] Nothing]
+
+    print (optimize testCode2)
+    print expected2
+    assertEqual "unchanged" (optimize testCode1) expected1
+    assertEqual "remove x"  (optimize testCode2) expected2

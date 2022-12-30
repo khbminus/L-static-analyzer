@@ -59,31 +59,32 @@ data Statement
   | Skip
   deriving (Eq)
 
-instance Show Statement where
-  show (Let x expr) = x ++ " := " ++ show expr
-  show (FunctionCallStatement name args) = name ++ "(" ++ show args ++ ")"
-  show (FunctionDeclaration name f) = "def " ++ name ++ show f
-  show (Write x) = "write " ++ show x
-  show (Read x) = "read " ++ x
-  show (While e s) = "while (" ++ show e ++ ") {" ++ show s ++ "}"
-  show (If e t f) = "If " ++ show e ++ " then " ++ show t ++ " else " ++ show f
-  show Skip = "skip"
-
-data Function = Function [String] [Statement] (Maybe Expression) deriving (Eq)
-
 joinToString :: Show a => String -> [a] -> String
 joinToString _ [x]        = show x
 joinToString delim (x:xs) = show x ++ delim ++ joinToString delim xs
 joinToString _ []         = ""
 
 bodyToString :: [Statement] -> String
-bodyToString body = case body of
+bodyToString body = "{ " ++ case body of
   [] -> "skip"
   b  -> joinToString "; " b
+  ++ " }"
+
+instance Show Statement where
+  show (Let x expr) = x ++ " := " ++ show expr
+  show (FunctionCallStatement name args) = name ++ "(" ++ show args ++ ")"
+  show (FunctionDeclaration name f) = "def " ++ name ++ show f
+  show (Write x) = "write " ++ show x
+  show (Read x) = "read " ++ x
+  show (While e s) = "while (" ++ show e ++ ") " ++ bodyToString s
+  show (If e t f) = "If " ++ show e ++ " then " ++ bodyToString t ++ " else " ++ bodyToString f
+  show Skip = "skip"
+
+data Function = Function [String] [Statement] (Maybe Expression) deriving (Eq)
 
 instance Show Function where
-  show (Function args body Nothing)    = "(" ++ joinToString ", " args ++ ") { " ++ bodyToString body ++ " }"
-  show (Function args body (Just ret)) = "(" ++ joinToString ", " args ++ ") { " ++ bodyToString body ++ " } return " ++ show ret
+  show (Function args body Nothing)    = "(" ++ joinToString ", " args ++ ") " ++ bodyToString body
+  show (Function args body (Just ret)) = "(" ++ joinToString ", " args ++ ") " ++ bodyToString body ++ " return " ++ show ret
 
 reservedKeywords :: [String]
 reservedKeywords = ["if", "then", "else", "while", "do", "read", "write"]
