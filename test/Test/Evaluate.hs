@@ -2,7 +2,8 @@ module Test.Evaluate where
 
 import Evaluate (evaluateList)
 import Context (newContext)
-import Test.HUnit
+import Test.Tasty.HUnit
+import Test.Tasty
 import Text.Megaparsec
 import Statement (Expression(..))
 import Control.Monad.State (evalStateT)
@@ -21,3 +22,6 @@ unit_evaluateExprList = do
     assert "failure" $ testEvaluateList [VariableName "var"] Nothing
     assert "failure" $ testEvaluateList [Const 1, VariableName "var"] Nothing
     assert "failure" $ testEvaluateList [VariableName "var", Const 2] Nothing
+
+unitTests :: [TestTree]
+unitTests = [ testCase "evaluate expr list" unit_evaluateExprList ]

@@ -2,9 +2,9 @@ module Test.Parsers where
 
 import Grammar
 import Statement
-import Test.HUnit
+import Test.Tasty
+import Test.Tasty.HUnit
 import Text.Megaparsec
-import Grammar (REPLInput(..))
 
 parseSuccessful :: Eq a => Parser a -> String -> a -> Bool
 parseSuccessful parser line result = case parse (parser <* eof) "" line of
@@ -16,7 +16,7 @@ parseFailed parser line = case parse (parser <* eof) "" line of
   Left _ -> True
   Right _ -> False
 
-unit_const :: IO ()
+unit_const :: Assertion
 unit_const = do
   let succConst = parseSuccessful constValue
   let failConst = parseFailed constValue
@@ -26,7 +26,7 @@ unit_const = do
   assertBool "const parser failed" $ succConst "1234567" (Const 1234567)
   assertBool "const parser failed" $ failConst "ahahahahh1234"
 
-unit_var_name :: IO ()
+unit_var_name :: Assertion
 unit_var_name = do
   let succVar = parseSuccessful varName
   let failVar = parseFailed varName
@@ -42,7 +42,7 @@ unit_var_name = do
   assertBool "bad keywords are banned" $ failVar "then"
   assertBool "bad keywords are banned" $ failVar "else"
 
-unit_expr :: IO ()
+unit_expr :: Assertion
 unit_expr = do
   let succExpr = parseSuccessful expression
   let failExpr = parseFailed expression
@@ -66,7 +66,7 @@ unit_expr = do
   assertBool "fails on unary" $ failExpr "+1"
   assertBool "fails on bad expr" $ failExpr "1+2++-"
 
-unit_let :: IO ()
+unit_let :: Assertion
 unit_let = do
   let success = parseSuccessful letVariable
   let fail = parseFailed letVariable
@@ -111,7 +111,7 @@ unit_let = do
           )
       ]
 
-unit_while :: IO ()
+unit_while :: Assertion
 unit_while = do
   let success = parseSuccessful while
   let fail = parseFailed while
@@ -138,7 +138,7 @@ unit_while = do
   assertBool "without statement fail" $ fail "while 1 do"
   assertBool "without condition fail" $ fail "while do { x := x }"
 
-unit_if :: IO ()
+unit_if :: Assertion
 unit_if = do
   let success = parseSuccessful ifThenElse
   let fail = parseFailed ifThenElse
@@ -154,7 +154,7 @@ unit_if = do
 
   assertBool "if fails with statement in condition" $ fail "if x := 1 then a 1 else a 2"
 
-unit_statement :: IO ()
+unit_statement :: Assertion
 unit_statement = do
   let success = parseSuccessful statement
   let fail = parseFailed statement
@@ -200,7 +200,7 @@ unit_expressionOrStatement = do
       Left _ -> True
       Right _ -> False
 
-unit_functionsDeclarations :: IO ()
+unit_functionsDeclarations :: Assertion
 unit_functionsDeclarations = do
   let success = parseSuccessful functionDeclaration
   let fail = parseFailed functionDeclaration
@@ -237,3 +237,18 @@ unit_functionsDeclarations = do
           ]
       ] 
       (Just (VariableName "y")))]
+
+
+
+unitTests :: [TestTree]
+unitTests = 
+  [ testCase "Const" unit_const
+  , testCase "Var Name" unit_var_name
+  , testCase "Expr" unit_expr
+  , testCase "Functions Declarations" unit_functionsDeclarations
+  , testCase "If" unit_if
+  , testCase "Let" unit_let
+  , testCase "Statement" unit_statement
+  , testCase "While" unit_while
+  , testCase "Expression or Statement" unit_expressionOrStatement
+  ]

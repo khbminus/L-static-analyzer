@@ -81,6 +81,7 @@ test-suite L-static-analyzer-test
       Test.Evaluate
       Test.Execute
       Test.Parsers
+      Test.PropertyExpr
       Paths_L_static_analyzer
   hs-source-dirs:
       test
@@ -102,6 +103,8 @@ test-suite L-static-analyzer-test
     , tasty
     , tasty-discover
     , tasty-hedgehog
+    , tasty-hspec
     , tasty-hunit
+    , tasty-quickcheck
     , transformers
   default-language: Haskell2010

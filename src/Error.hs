@@ -11,4 +11,5 @@ data RuntimeError = ParserError ParsecError
                   | CallOfVoidFunctionInExpression String
                   | InvalidNumberOfArguments String Int Int
                   | InvalidInput String
+                  | DivisionByZero
                   deriving (Show, Eq)
