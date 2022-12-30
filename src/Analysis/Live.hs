@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wall -fno-warn-incomplete-patterns #-}
 {-# LANGUAGE ScopedTypeVariables, GADTs #-}
+{-# LANGUAGE NamedFieldPuns #-}
 module Analysis.Live where
 
 import Data.Maybe
@@ -8,7 +9,9 @@ import qualified Data.Set as S
 import Compiler.Hoopl
 import Analysis.IR
 import Analysis.OptSupport
-import Statement (Expression(VariableName))
+import Statement (Expression(VariableName), Statement)
+import Analysis.AstToIr (astToIR)
+import Analysis.IrToAst (irToAst)
 
 type Var = String
 type Live = S.Set Var
@@ -55,3 +58,27 @@ deadAsstElim = mkBRewrite d
     d (Let x _) live
         | not (x `S.member` live) = return $ Just emptyGraph
     d _ _ = return Nothing
+
+type ErrorM = Either String
+
+liveOpt :: M [Proc] -> ErrorM (M [Proc])
+liveOpt procs =
+    return $ procs >>= mapM optProc
+  where
+    optProc proc@Proc {entry, body, args} = do
+        (body', _, _) <- analyzeAndRewriteBwd bwd (JustC [entry]) body mapEmpty
+        return $ proc { body = body' }
+    bwd = BwdPass { bp_lattice  = liveLattice
+                  , bp_transfer = liveness
+                  , bp_rewrite  = deadAsstElim
+                  }
+
+optimizeLive :: [Statement] -> [Statement]
+optimizeLive sts = do
+  case liveOpt (fmap snd (astToIR sts)) of
+    Left err -> error err
+    Right p  -> do
+      let opted = runSimpleUniqueMonad $ runWithFuel fuel p
+      irToAst opted
+  where
+    fuel = 9999
