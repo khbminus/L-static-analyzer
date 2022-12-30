@@ -76,9 +76,14 @@ joinToString _ [x]        = show x
 joinToString delim (x:xs) = show x ++ delim ++ joinToString delim xs
 joinToString _ []         = ""
 
+bodyToString :: [Statement] -> String
+bodyToString body = case body of
+  [] -> "skip"
+  b  -> joinToString "; " b
+
 instance Show Function where
-  show (Function args body Nothing)    = "(" ++ joinToString ", " args ++ ") { " ++ joinToString "; " body ++ " }"
-  show (Function args body (Just ret)) = "(" ++ joinToString ", " args ++ ") { " ++ joinToString "; " body ++ " } return " ++ show ret
+  show (Function args body Nothing)    = "(" ++ joinToString ", " args ++ ") { " ++ bodyToString body ++ " }"
+  show (Function args body (Just ret)) = "(" ++ joinToString ", " args ++ ") { " ++ bodyToString body ++ " } return " ++ show ret
 
 reservedKeywords :: [String]
 reservedKeywords = ["if", "then", "else", "while", "do", "read", "write"]
