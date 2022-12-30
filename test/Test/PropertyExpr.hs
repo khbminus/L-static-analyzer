@@ -27,7 +27,7 @@ genExpr n vars =
         binOpGen = do
             op <- genOp
             Gen.subterm2 (genExpr n vars) (genExpr n vars) (Application op)
-        numGen = Const <$> Gen.int (Range.constant 0 n)
+        numGen = Const <$> Gen.int (Range.constant 1 n)
         varGen = VariableName <$> Gen.element vars
 
         nonRecGens = numGen : ([varGen | not (null vars)])

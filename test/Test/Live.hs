@@ -7,7 +7,8 @@ import Data.Either (isLeft, fromRight)
 import Data.Maybe (fromJust)
 import Analysis.Live (optimizeLive)
 
-import Test.Tasty.HUnit (assertEqual)
+import Test.Tasty.HUnit (assertEqual, Assertion, testCase)
+import Test.Tasty
 
 
 parse :: String -> Maybe [Statement]
@@ -27,7 +28,7 @@ optimizeFromString text = case parse text of
 increment :: String -> Expression -> Statement
 increment var expr = Let var (Application Addition (VariableName var) expr)
 
-unit_Liveness :: IO ()
+unit_Liveness :: Assertion
 unit_Liveness = do
     let testCode1 = "def f() { x := 5; y := x } return 1"
     let expected1 = [FunctionDeclaration "f" (Function [] [] (Just $ Const 1))]
@@ -43,7 +44,7 @@ unit_Liveness = do
     assertEqual "Liveness 2" (optimizeFromString testCode2) expected2
     assertEqual "Liveness 3" (optimizeFromString testCode3) expected3
 
-unit_ReadWrite :: IO ()
+unit_ReadWrite :: Assertion
 unit_ReadWrite = do
     let testCode1 = "def f() { read x }"
     let expected1 = [FunctionDeclaration "f" (Function [] [Read "x"] Nothing)]
@@ -54,7 +55,7 @@ unit_ReadWrite = do
     assertEqual "Liveness 1" (optimizeFromString testCode1) expected1
     assertEqual "Liveness 2" (optimizeFromString testCode2) expected2
 
-unit_If :: IO ()
+unit_If :: Assertion
 unit_If = do
     let testCode1 = "def f() { y := 0; z := 0; if z == 0 then { y := y + 3 } else { z := z + 1 } } return y"
     let expected1 = [FunctionDeclaration "f" (Function [] [Let "y" (Const 0), Let "z" (Const 0), If (Application Equals (VariableName "z") (Const 0)) [increment "y" (Const 3)] []] (Just $ VariableName "y"))]
@@ -75,3 +76,11 @@ unit_While = do
 
     assertEqual "unchanged" (optimizeFromString testCode1) expected1
     assertEqual "remove x"  (optimizeFromString testCode2) expected2
+
+unitTests :: [TestTree]
+unitTests = 
+  [ testCase "While" unit_While
+  , testCase "If" unit_If
+  , testCase "Read/Write" unit_ReadWrite
+  , testCase "Liveness" unit_Liveness
+  ]

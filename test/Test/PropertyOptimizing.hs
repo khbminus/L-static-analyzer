@@ -13,6 +13,7 @@ import Data.List (nub)
 import Analysis.Live (optimizeLive)
 import qualified Context
 import Execute (execute)
+import Data.Maybe
 
 genVarName :: [String] -> Int -> Gen String
 genVarName _ 0 = error "too short"
@@ -61,10 +62,9 @@ genStatement vars bodyLen lenVar limVal = Gen.choice [genLet', genWrite, genIf, 
         genIf :: Gen (A.Statement, [String])
         genIf = do
             expr <- genExpr limVal vars
-            (t, vars') <- Gen.subterm (genStatements vars bodyLen lenVar limVal) id
-            let vars'' = nub (vars' ++ vars)
-            (f, vars''') <- Gen.subterm (genStatements vars bodyLen lenVar limVal) id
-            return (A.If expr t f, nub (vars''' ++ vars''))
+            (t, _) <- Gen.subterm (genStatements vars bodyLen lenVar limVal) id
+            (f, _) <- Gen.subterm (genStatements vars bodyLen lenVar limVal) id
+            return (A.If expr t f, vars)
 
         genSkip :: Gen (A.Statement, [String])
         genSkip = return (A.Skip, vars)
@@ -112,11 +112,16 @@ genFunCalls funs amount limVar = Gen.list (Range.singleton amount) genCall
             args <- genArgs argsCnt
             return $ A.FunctionCallStatement name args
 
+isError :: MonadTest m => Context.Context -> Context.Context -> m ()
+isError ctx1@Context.Context {Context.error = x} ctx2@Context.Context {Context.error = y} = case x of
+    Just _ -> if isJust y then success else failure
+    Nothing -> if isNothing y then Context.output  ctx1 === Context.output ctx2  else failure
+
 prop_is_eval_ok :: Property
 prop_is_eval_ok = property $ do
-    let numOfFuns = 5
+    let numOfFuns = 3
     let argsNum = 3
-    let bodyLen = 3
+    let bodyLen = 2
     let lenVar = 2
     let limVar = 1000
     ast <- forAll $ genAst numOfFuns argsNum bodyLen lenVar limVar
@@ -128,13 +133,13 @@ prop_is_eval_ok = property $ do
     ctx1' <- liftIO $ execStateT (execute ast) ctx1
     ctx2' <- liftIO $ execStateT (execute optAst) ctx2
 
-    let callsAmount = 10
+    let callsAmount = 2
 
     calls <- forAll $ genFunCalls funParams callsAmount limVar
 
     ctx1'' <- liftIO $ execStateT (execute calls) ctx1'
     ctx2'' <- liftIO $ execStateT (execute calls) ctx2'
-    Context.output  ctx1'' === Context.output ctx2''
+    isError ctx1'' ctx2''
 
 
 props :: [TestTree]

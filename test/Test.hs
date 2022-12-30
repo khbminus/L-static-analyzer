@@ -6,6 +6,7 @@ import qualified Test.Execute
 import qualified Test.Evaluate
 import qualified Test.ConsoleParser
 import qualified Test.PropertyOptimizing
+import qualified Test.Live
 
 main :: IO ()
 main = defaultMain (testGroup "All Tests"
@@ -14,5 +15,6 @@ main = defaultMain (testGroup "All Tests"
                     , testGroup "Execute" Test.Execute.unitTests
                     , testGroup "Evaluate" Test.Evaluate.unitTests
                     , testGroup "Console parser" Test.ConsoleParser.unitTests 
-                    , testGroup "Property-based live optimization" Test.PropertyOptimizing.props
+                    , testGroup "Liveness optimization" Test.Live.unitTests
+                    , testGroup "Property-based liveness optimization" Test.PropertyOptimizing.props
                     ]) 
