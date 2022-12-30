@@ -90,11 +90,13 @@ evaluateOneStatement (Let name value) = do
 
 evaluateOneStatement Skip = pure ()
 
-evaluateOneStatement (While expression statements) = do
+evaluateOneStatement while@(While expression statements) = do
   value <- runMaybeT $ evaluateExpression expression
   case value of
     Just val
-      | toBool val -> evaluateStatements statements
+      | toBool val -> do 
+        evaluateStatements statements
+        evaluateOneStatement while
       | otherwise -> pure ()
     Nothing -> pure ()
 

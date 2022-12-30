@@ -23,7 +23,7 @@ run' optimize strs = do
   parsed <- runMaybeT $ parse strs
   case parsed of
     Nothing  -> pure ()
-    Just sts -> foldr ((>>) . execute) (pure ()) (map optimizeLive sts ++ map (filter $ not . isFunctionDeclaration) sts)
+    Just sts -> if optimize then foldr ((>>) . execute) (pure ()) (map optimizeLive sts ++ map (filter $ not . isFunctionDeclaration) sts) else execute $ concat sts
 
 
 execute :: [Statement] -> StateT Context IO ()
