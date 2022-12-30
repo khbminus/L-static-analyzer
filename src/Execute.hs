@@ -5,7 +5,7 @@ import Control.Monad.State
 import Error (RuntimeError (..))
 import Evaluate (evaluateStatements, evaluateExpression)
 import Grammar (parseStatement, REPLInput (..), parseStatementOrExpression)
-import Data.Maybe (isNothing, isJust, fromJust)
+import Data.Maybe (isNothing)
 import Control.Monad.Trans.Maybe (MaybeT(..))
 
 run :: [String] -> StateT Context IO ()
