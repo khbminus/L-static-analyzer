@@ -1,7 +1,7 @@
 module Console where
 
 import Context (Context(..))
-import Execute (run, executeREPL)
+import Execute (run', executeREPL)
 import System.IO ( hFlush, stdout )
 import Control.Monad ( when )
 import Control.Monad.State ( MonadTrans(lift) )
@@ -12,9 +12,9 @@ readEvalWriteLoop = do
     input <- lift $ prompt "L: "
     when (input /= "q") $ executeREPL input >> unsetError >> readEvalWriteLoop
 
-runLoop :: [String] -> StateT Context IO ()
-runLoop input = do
-    run input
+runLoop :: Bool -> [String] -> StateT Context IO ()
+runLoop live input = do
+    run' live input
     context <- get
     maybe (pure ()) (lift . print) (Context.error context)
 

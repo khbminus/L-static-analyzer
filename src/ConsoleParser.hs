@@ -9,12 +9,14 @@ import Context (VarContext, setVarContext, emptyVarContext)
 -- Тип данных, агрегирующий все аргументы командной строки, возвращается actionParser-ом
 data Action = Action
             { input :: Input
-            , vars :: [String] }
+            , liveness :: Bool 
+            , vars :: [String]
+            }
             deriving (Show)
 
 -- Парсер аргументов командной строки
 actionParser :: Optparse.Parser Action
-actionParser = Action <$> (inputParser <|> pure Interactive) <*> varsParser
+actionParser = Action <$> (inputParser <|> pure Interactive)<*> liveOptParser <*> varsParser
 
 -- Тип входных данных
 data Input = FileInput FilePath -- Имя входного файла
@@ -29,6 +31,11 @@ inputParser = FileInput <$> Optparse.strOption
   <> Optparse.long "input"        -- длинное имя флага (--input)
   <> Optparse.metavar "INPUT"     -- как аргумент этой опции называется в документации
   <> Optparse.help "Input file" )
+
+liveOptParser :: Optparse.Parser Bool
+liveOptParser = Optparse.switch 
+  (  Optparse.long "liveness-optimization"
+  <> Optparse.help "Whether to enable liveness optimization" )
 
 varsParser :: Optparse.Parser [String]
 varsParser = Optparse.many $ Optparse.argument Optparse.str $ Optparse.metavar "VARS..."
