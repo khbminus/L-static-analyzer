@@ -11,12 +11,14 @@ data Action = Action
             { input :: Input
             , liveness :: Bool 
             , vars :: [String]
+            , extend :: Bool
+            , ir :: Bool
             }
             deriving (Show)
 
 -- Парсер аргументов командной строки
 actionParser :: Optparse.Parser Action
-actionParser = Action <$> (inputParser <|> pure Interactive)<*> liveOptParser <*> varsParser
+actionParser = Action <$> (inputParser <|> pure Interactive) <*> liveOptParser <*> varsParser <*> extendParser <*> irParser
 
 -- Тип входных данных
 data Input = FileInput FilePath -- Имя входного файла
@@ -36,6 +38,17 @@ liveOptParser :: Optparse.Parser Bool
 liveOptParser = Optparse.switch 
   (  Optparse.long "liveness-optimization"
   <> Optparse.help "Whether to enable liveness optimization" )
+
+extendParser :: Optparse.Parser Bool
+extendParser = Optparse.switch
+  (  Optparse.long "extend"
+  <> Optparse.short 'E'
+  <> Optparse.help "Print instructions to execute, but do not execute code" )
+
+irParser :: Optparse.Parser Bool
+irParser = Optparse.switch
+  (  Optparse.long "ir"
+  <> Optparse.help "Print IR of code" )
 
 varsParser :: Optparse.Parser [String]
 varsParser = Optparse.many $ Optparse.argument Optparse.str $ Optparse.metavar "VARS..."

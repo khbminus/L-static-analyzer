@@ -132,7 +132,7 @@ functionDeclaration =
   buildDeclaration
     <$> (symbol "def" *> name)
     <*> parens (name `sepBy` symbol ",")
-    <*> curlyParens statement
+    <*> curlyParens (lexeme statement)
     <*> optional (symbol "return" *> expression)
   where
     buildDeclaration a b c d = [FunctionDeclaration a (Function b c d)]
@@ -147,7 +147,7 @@ statement :: Parser [Statement]
 statement = concat <$> (terms `sepBy1` symbol ";")
   where
     terms =
-      choice
+      lexeme $ choice
         [ ifThenElse,
           while,
           write,

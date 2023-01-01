@@ -4,7 +4,7 @@ import Data.Void (Void)
 
 type ParsecError = ParseErrorBundle String Void
 
-data RuntimeError = ParserError ParsecError
+data RuntimeError = ParserError String
                   | VarNotFound String
                   | FunctionNotFound String
                   | UnexpectedEOF

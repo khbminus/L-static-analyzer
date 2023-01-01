@@ -1,4 +1,4 @@
-module Execute (run, run', execute, executeREPL) where
+module Execute (run, run', execute, executeREPL, applyToCode) where
 
 import Context ( Context(..), setErrorT )
 import Control.Monad.State
@@ -10,6 +10,7 @@ import Control.Monad.Trans.Maybe (MaybeT(..))
 import Statement (Statement)
 import Analysis.Live (optimizeLive)
 import Analysis.AstToIr (isFunctionDeclaration)
+import Text.Megaparsec (errorBundlePretty)
 
 run :: [String] -> StateT Context IO ()
 run strs = do
@@ -25,6 +26,16 @@ run' optimize strs = do
     Nothing  -> pure ()
     Just sts -> if optimize then foldr ((>>) . execute) (pure ()) (map optimizeLive sts ++ map (filter $ not . isFunctionDeclaration) sts) else execute $ concat sts
 
+applyToCode :: Bool -> [String] -> ([Statement] -> a) -> a -> StateT Context IO a
+applyToCode optimize strs f defaultValue = do
+  parsed <- runMaybeT $ parse strs
+  case parsed of
+    Nothing -> return defaultValue
+    Just sts -> do
+      let sts' = concat sts
+      let realSts = if optimize then optimizeLive sts' ++ filter (not . isFunctionDeclaration) sts' else sts'
+      return $ f realSts
+
 
 execute :: [Statement] -> StateT Context IO ()
 execute statements = do
@@ -35,7 +46,7 @@ execute statements = do
 parse :: [String] -> MaybeT (StateT Context IO) [[Statement]]
 parse (x:xs) = do
   case parseStatement x of
-    Left err -> do { lift $ setErrorT $ ParserError err; mzero }
+    Left err -> do { lift $ setErrorT $ ParserError $ errorBundlePretty err; mzero }
     Right parsed -> do
       parsedTail <- parse xs
       return $ parsed : parsedTail
@@ -46,7 +57,7 @@ executeREPL str = do
   context <- get
   guard ( isNothing (Context.error context) )
   case parseStatementOrExpression str of
-    Left err -> setErrorT $ ParserError err
+    Left err -> setErrorT $ ParserError $ errorBundlePretty err
     Right (ConsoleStatement st) -> evaluateStatements st
     Right (ConsoleExpression ex) -> do
       res <- runMaybeT $ evaluateExpression ex
