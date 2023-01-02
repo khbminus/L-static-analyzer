@@ -12,28 +12,27 @@ import Analysis.Live (optimizeLive)
 import Analysis.AstToIr (isFunctionDeclaration)
 import Text.Megaparsec (errorBundlePretty)
 
-run :: [String] -> StateT Context IO ()
+run :: String -> StateT Context IO ()
 run strs = do
   parsed <- runMaybeT $ parse strs
   case parsed of
     Nothing  -> pure ()
-    Just sts -> foldr ((>>) . execute) (pure ()) sts
+    Just sts -> execute sts
 
-run' :: Bool -> [String] -> StateT Context IO ()
+run' :: Bool -> String -> StateT Context IO ()
 run' optimize strs = do
   parsed <- runMaybeT $ parse strs
   case parsed of
     Nothing  -> pure ()
-    Just sts -> if optimize then foldr ((>>) . execute) (pure ()) (map optimizeLive sts ++ map (filter $ not . isFunctionDeclaration) sts) else execute $ concat sts
+    Just sts -> if optimize then execute (optimizeLive sts ++ filter (not . isFunctionDeclaration) sts) else execute $ sts
 
-applyToCode :: Bool -> [String] -> ([Statement] -> a) -> a -> StateT Context IO a
+applyToCode :: Bool -> String -> ([Statement] -> a) -> a -> StateT Context IO a
 applyToCode optimize strs f defaultValue = do
   parsed <- runMaybeT $ parse strs
   case parsed of
     Nothing -> return defaultValue
     Just sts -> do
-      let sts' = concat sts
-      let realSts = if optimize then optimizeLive sts' ++ filter (not . isFunctionDeclaration) sts' else sts'
+      let realSts = if optimize then optimizeLive sts ++ filter (not . isFunctionDeclaration) sts else sts
       return $ f realSts
 
 
@@ -43,15 +42,12 @@ execute statements = do
   guard ( isNothing (Context.error context) )
   evaluateStatements statements
 
-parse :: [String] -> MaybeT (StateT Context IO) [[Statement]]
-parse (x:xs) = do
+parse :: String -> MaybeT (StateT Context IO) [Statement]
+parse x = do
   case parseStatement x of
     Left err -> do { lift $ setErrorT $ ParserError $ errorBundlePretty err; mzero }
-    Right parsed -> do
-      parsedTail <- parse xs
-      return $ parsed : parsedTail
-parse [] = return []
-
+    Right parsed ->
+      return parsed
 executeREPL :: String -> StateT Context IO ()
 executeREPL str = do
   context <- get

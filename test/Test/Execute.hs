@@ -11,6 +11,7 @@ import Statement (Expression (..), Operations (..), Statement (..))
 import Test.Tasty.HUnit (assertBool, Assertion, testCase)
 import Test.Tasty
 import Execute(run)
+import Data.List (intercalate)
 
 checkOutput :: Context -> [String] -> Bool
 checkOutput cxt out = Context.output cxt == Buffer out
@@ -73,7 +74,7 @@ unit_basicWhileTest = do
 
 unit_functions :: Assertion
 unit_functions = do
-  let code = 
+  let code = intercalate ";\n"
         [
           "def f() { write 1 } return 2", 
           "f()", 

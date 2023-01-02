@@ -24,10 +24,10 @@ runAction (Action (FileInput path) live varContext extend ir) = do
   i <- readFile path
   let context = newContext { Context.vars = [getVarContext varContext]}
   case (ir, extend) of
-    (False, False) -> evalStateT (runLoop live [i]) context
-    (False, True) -> evalStateT (printExtended live [i]) context
-    (True, False) -> evalStateT (printIr live [i]) context
-    (True, True) -> evalStateT (do {printExtended live [i]; printIr live [i]}) context
+    (False, False) -> evalStateT (runLoop live i) context
+    (False, True) -> evalStateT (printExtended live i) context
+    (True, False) -> evalStateT (printIr live i) context
+    (True, True) -> evalStateT (do {printExtended live i; printIr live i}) context
 
 -- выход: q
 runAction (Action Interactive _ varContext extend ir) =

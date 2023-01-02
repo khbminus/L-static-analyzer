@@ -18,23 +18,25 @@ readEvalWriteLoop = do
     input <- lift $ prompt "L: "
     when (input /= "q") $ executeREPL input >> unsetError >> readEvalWriteLoop
 
-runLoop :: Bool -> [String] -> StateT Context IO ()
+runLoop :: Bool -> String -> StateT Context IO ()
 runLoop live input = do
     run' live input
     context <- get
     maybe (pure ()) (lift . print) (Context.error context)
 
-printExtended :: Bool -> [String] -> StateT Context IO ()
+printExtended :: Bool -> String -> StateT Context IO ()
 printExtended live input = do
     extended <- applyToCode live input f ""
-    (lift . putStrLn) extended
+    ctx <- get
+    (lift . putStrLn) $ maybe extended show (Context.error ctx)
     where
         f sts = intercalate ";\n" (map show sts)
 
-printIr :: Bool -> [String] -> StateT Context IO ()
+printIr :: Bool -> String -> StateT Context IO ()
 printIr live input = do
     ir <- applyToCode live input f ""
-    (lift . putStrLn) ir
+    ctx <- get
+    (lift . putStrLn) $ maybe ir show (Context.error ctx)
     where
         getIr sts = snd $ runSimpleUniqueMonad $ runWithFuel infiniteFuel (astToIR sts)
 
