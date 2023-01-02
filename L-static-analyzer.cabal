@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.4.
+-- This file has been generated from package.yaml by hpack version 0.35.0.
 --
 -- see: https://github.com/sol/hpack
 
@@ -25,7 +25,19 @@ source-repository head
 
 library
   exposed-modules:
-      Lib
+      Analysis.AstToIr
+      Analysis.IR
+      Analysis.IrToAst
+      Analysis.Live
+      Analysis.OptSupport
+      Console
+      ConsoleParser
+      Context
+      Error
+      Evaluate
+      Execute
+      Grammar
+      Statement
   other-modules:
       Paths_L_static_analyzer
   hs-source-dirs:
@@ -33,6 +45,14 @@ library
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       base >=4.7 && <5
+    , composition-prelude
+    , containers
+    , hoopl
+    , megaparsec
+    , mtl
+    , optparse-applicative
+    , parser-combinators
+    , transformers
   default-language: Haskell2010
 
 executable L-static-analyzer-exe
@@ -45,17 +65,50 @@ executable L-static-analyzer-exe
   build-depends:
       L-static-analyzer
     , base >=4.7 && <5
+    , composition-prelude
+    , containers
+    , hoopl
+    , megaparsec
+    , mtl
+    , optparse-applicative
+    , parser-combinators
+    , transformers
   default-language: Haskell2010
 
 test-suite L-static-analyzer-test
   type: exitcode-stdio-1.0
-  main-is: Spec.hs
+  main-is: Test.hs
   other-modules:
+      Test.ConsoleParser
+      Test.Evaluate
+      Test.Execute
+      Test.Live
+      Test.Parsers
+      Test.PropertyExpr
+      Test.PropertyOptimizing
       Paths_L_static_analyzer
   hs-source-dirs:
       test
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      L-static-analyzer
+      HUnit
+    , HUnit-approx
+    , L-static-analyzer
     , base >=4.7 && <5
+    , composition-prelude
+    , containers
+    , hedgehog
+    , hoopl
+    , hspec
+    , hspec-megaparsec
+    , megaparsec
+    , mtl
+    , parser-combinators
+    , tasty
+    , tasty-discover
+    , tasty-hedgehog
+    , tasty-hspec
+    , tasty-hunit
+    , tasty-quickcheck
+    , transformers
   default-language: Haskell2010
